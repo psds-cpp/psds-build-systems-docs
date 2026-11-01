@@ -1,0 +1,59 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{presentationtemplate}
+
+% packages
+\usepackage[main=russian,english]{babel}
+\usepackage{hyperref}
+\usepackage[export]{adjustbox}
+\usepackage{fontspec}
+
+\RequirePackage{tikz}
+\usetikzlibrary{positioning}
+
+% fonts
+\setsansfont[
+    Path=fonts/dejavu-sans/,
+    BoldFont=DejaVuSans-Bold.ttf,
+    ItalicFont=DejaVuSans-Oblique.ttf,
+    BoldItalicFont=DejaVuSans-BoldOblique.ttf,
+]{DejaVuSans.ttf}
+\setmonofont[
+    Path=fonts/Fira-Mono/,
+    BoldFont=FiraMono-Medium.ttf,
+]{FiraMono-Regular.ttf}
+
+% set hyperlinks style
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,
+    urlcolor=cyan,
+}
+
+% beamer template settings
+\beamertemplatenavigationsymbolsempty
+\setbeamertemplate{headline}{}
+\setbeamertemplate{itemize items}[circle]
+\setbeamertemplate{footline}[frame number]
+
+% add logos on title slide
+\titlegraphic{
+    \includegraphics[scale=0.3,valign=t]{presentations/images/prosoft-logo.png}
+}
+
+% add logos on regular slides
+\logo{
+    \begin{tikzpicture}[overlay,remember picture]
+        \node[below left=0.3cm and 0.3cm] at (current page.north east){
+            \includegraphics[scale=0.15,valign=t]{presentations/images/prosoft-logo.png}
+        };
+    \end{tikzpicture}
+}
+
+% title slide content (except current topic)
+\subtitle{Введение в разработку на C}
+\author{Пыхов~Олег~Александрович \\ \texttt{pyhovoleg31@gmail.com}}
+\institute{
+    ООО~"Прософт-Системы"
+}
+\date{\the\year{}}

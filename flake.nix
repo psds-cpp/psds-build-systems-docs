@@ -1,5 +1,5 @@
 {
-  description = "Prosoft DevSchool presentations for 'C' track of the program";
+  description = "Prosoft DevSchool presentations for 'Build systems' track of the program";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-26.05";
@@ -22,7 +22,7 @@
   {
     packages.${system}.default = pkgs.stdenvNoCC.mkDerivation {
 
-      name = "psds-c-docs";
+      name = "psds-build-systems-docs";
 
       src = ./.;
 
@@ -52,7 +52,11 @@
     };
 
     devShells.${system}.default = pkgs.mkShellNoCC {
-      packages = buildInputs;
+      packages = buildInputs ++ [
+        pkgs.gcc
+        pkgs.cmake
+        pkgs.poppler-utils
+      ];
     };
 
     checks.${system}.fmt = pkgs.runCommand "check-fmt" { } ''
