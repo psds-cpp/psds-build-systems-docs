@@ -39,5 +39,5 @@ endef
 	presentations/images/source_code.png \
 	presentations/images/prosoft-logo.png \
 	packages/terminal.sty \
-	packages/mylisting.sty \
-	packages/myitemize.sty
+	packages/mylisting.sty
+	$(call generate_pdf,$<,$@)
