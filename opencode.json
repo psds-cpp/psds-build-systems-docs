@@ -8,18 +8,14 @@
         { "action": "websearch", "resource": "*", "effect": "allow" },
         { "action": "webfetch",  "resource": "*", "effect": "allow" },
         { "action": "shell",     "resource": "*", "effect": "allow" },
-        { "action": "edit",      "resource": "build/drafts/*", "effect": "allow" },
-        { "action": "edit",      "resource": "*", "effect": "ask" }
+        { "action": "edit",      "resource": "*", "effect": "allow" }
       ]
     },
     "latex-designer": {
       "mode": "subagent",
       "permissions": [
-        { "action": "edit",  "resource": "presentations/*", "effect": "allow" },
-        { "action": "edit",  "resource": "Makefile",        "effect": "allow" },
-        { "action": "shell", "resource": "nix develop --command make*", "effect": "allow" },
-        { "action": "shell", "resource": "*", "effect": "ask" },
-        { "action": "edit",  "resource": "*", "effect": "ask" },
+        { "action": "shell", "resource": "*", "effect": "allow" },
+        { "action": "edit",  "resource": "*", "effect": "allow" },
         { "action": "shell", "resource": "git commit*", "effect": "deny" },
         { "action": "shell", "resource": "git push*",   "effect": "deny" },
         { "action": "shell", "resource": "git reset*",  "effect": "deny" }
