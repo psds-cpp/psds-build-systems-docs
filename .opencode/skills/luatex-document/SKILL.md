@@ -99,8 +99,22 @@ When writing or changing LuaTeX code follow this rules:
   Edit this file only in great need as it potentially affects all other documents.
   You must ask for user's approval if change is to be applied to a template.
 
-- Use 4 spaces per nesting level for indentation.
-  Verbatim content (listings, `terminalwindow`) is not indented.
+- Use 4 spaces for identation.
+
+- Each sentence in LuaTeX source file must start with newline (not in render,
+  only in *.tex file).
+
+- Add newlines between LaTeX control statements.
+  Example:
+  ```tex
+  \begin{itemize}
+
+    \item My item 1...
+
+    \item My item 2...
+
+  \end{itemize}
+  ```
 
 ## Fonts
 
