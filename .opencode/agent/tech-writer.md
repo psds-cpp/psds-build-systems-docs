@@ -18,7 +18,7 @@ do the fact checking.
 **product-manager** may ask you to prepare document plan to present
 to user.
 **product-manager** will provide requirements in the prompt.
-You will write plan according to them to `build/drafts/*`
+You will write plan according to them to `drafts/*`
 in Markdown format and give it to **product-manager**.
 
 User may ask to change plan, **product-manager** will let you know.

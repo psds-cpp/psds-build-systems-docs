@@ -1,0 +1,22 @@
+CC     = cc
+CFLAGS = -Wall -O2
+
+SRCS = $(wildcard *.c)
+OBJS = $(patsubst %.c,%.o,$(SRCS))
+
+all: calc
+
+calc: $(OBJS)
+	$(CC) $^ -o $@
+
+%.o: %.c calc.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+info:
+	@echo "Compiler: $(shell $(CC) --version | head -n1)"
+	@echo "Sources : $(SRCS)"
+
+clean:
+	rm -f calc $(OBJS)
+
+.PHONY: all info clean

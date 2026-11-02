@@ -1,0 +1,18 @@
+CC     = cc
+CFLAGS = -Wall -O2 -fPIC
+
+all: calc libcalc.so
+
+calc: main.o libcalc.so
+	$(CC) $^ -o $@
+
+libcalc.so: calc.o
+	$(CC) -shared $^ -o $@
+
+%.o: %.c calc.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f calc *.o *.so
+
+.PHONY: all clean

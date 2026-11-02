@@ -1,0 +1,8 @@
+CC = cc
+CFLAGS = -Wall -O2
+
+calc: main.o calc.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+%.o: %.c calc.h
+	$(CC) $(CFLAGS) -c $< -o $@

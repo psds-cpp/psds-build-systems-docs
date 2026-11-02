@@ -1,0 +1,874 @@
+\documentclass[compress, aspectratio=169]{beamer}
+
+\usepackage{presentationtemplate}
+\usepackage[fontsize=\small,linenosfontsize=\small]{mylisting}
+\usepackage[fontsize=\small]{terminal}
+
+\title{GNU Make: от shell-скрипта к инкрементальной сборке}
+
+\setbeamertemplate{footnote}{%
+  \small\insertfootnotetext\par
+}
+
+% Beamer ставит перед каждой сноской правило высотой
+% \footnotesep (по умолчанию 10pt). Уменьшаем отступ между
+% сносками: в кадре 33 таблица и три сноски переполняли
+% высоту кадра на 2,8pt при стандартном значении.
+\setlength{\footnotesep}{3pt}
+
+% Базовый URL руководства GNU Make.
+% Тело разбито на строки (каждая < 100 символов), символы %
+% гасят переводы строк, чтобы в URL не попало пробельное
+% пространство. Внутри \url{...} макрос расширяется в полный
+% адрес (проверено: и вывод, и цель ссылки корректны).
+% Перенос строки ВНУТРИ \url{...} запрещён: пробел становится
+% неразрывной частью слова, и URL уезжает за правый край.
+\newcommand{\makemanual}{%
+https://www.gnu.org/software/make/manual/%
+make.html}
+
+% Компактный титульный слайд.
+% \insertsubtitle не используется: в шаблоне подзаголовок
+% зафиксирован для другой темы презентации.
+\setbeamertemplate{title page}{%
+  \vfil
+  \begin{center}
+    {\large\inserttitle\par}%
+    \vspace{0.45em}%
+    {\small\textit{Сборка C/C++-проектов с помощью GNU Make}\par}%
+    \vspace{0.4em}%
+    {\small Курс «Системы сборки», Школа Разработчиков
+      ООО «Прософт-Системы»\par}%
+    \vspace{0.4em}%
+    {\small Все примеры лекции — один проект из двух исходных
+      файлов (\texttt{calc/})\par}%
+    \vspace{1.0em}%
+    {\small\insertauthor\par}%
+    \vspace{0.25em}%
+    {\small\insertinstitute\par}%
+    \vspace{0.25em}%
+    {\small\insertdate\par}%
+  \end{center}%
+  \vfil
+}
+
+\begin{document}
+
+%------------------------------------------------------------------
+% Слайд 1: титульный
+%------------------------------------------------------------------
+\begin{frame}
+  \titlepage
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 2: зачем нужны системы сборки
+%------------------------------------------------------------------
+\begin{frame}{Зачем нужны системы сборки?}
+  \small
+  \begin{itemize}
+    \item C/C++-программа собирается в два шага: компиляция
+      каждого \texttt{.c} в \texttt{.o} и линковка
+      \texttt{.o}-файлов в исполняемый файл.
+    \item На маленьком проекте так делают руками, но легко
+      ошибиться: неверный флаг, порядок файлов, забытая
+      зависимость от заголовка.
+    \item С ростом числа файлов (десятки, сотни) повторять
+      команды руками нереально.
+    \item Требования к сборке: воспроизводимость (одни и те же
+      команды → один и тот же результат), скорость
+      (пересобирать только изменившееся), единый источник
+      правды о правилах сборки.
+    \item Идея системы сборки — декларативность: описываем,
+      \textbf{что} зависит от \textbf{чего}, а не пошаговый
+      сценарий.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 3: рабочий пример — проект calc (часть 1: дерево)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Рабочий пример: проект \texttt{calc}}
+  \small
+  \myinputlisting[minted language=text]
+    {presentations/01-gnu-make/src/}
+    {project-tree.txt}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 4: рабочий пример — проект calc (часть 2: calc.h)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Рабочий пример: проект \texttt{calc}}
+  \small
+  \myinputlisting[minted language=c]
+    {presentations/01-gnu-make/src/}
+    {calc.h}
+  \begin{itemize}
+    \item \texttt{calc.h} — единый заголовок: любой файл,
+      включающий его, видит одни и те же объявления;
+    \item \texttt{calc.c} и \texttt{main.c} включают
+      \texttt{calc.h} — значит, при изменении заголовка
+      пересобирать нужно \textbf{оба};
+    \item артефакт сборки — исполняемый файл \texttt{calc};
+      все Makefile лекции собирают именно его.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 5: наивное решение — shell-скрипт (часть 1)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Наивное решение: shell-скрипт}
+  \small
+  \myinputlisting[minted language=bash]
+    {presentations/01-gnu-make/src/}
+    {build.sh}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 6: наивное решение — shell-скрипт (часть 2)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Наивное решение: shell-скрипт}
+  \small
+  \begin{itemize}
+    \item полная пересборка при каждом запуске: компилируются
+      оба \texttt{.c}-файла, даже если ничего не менялось;
+    \item зависимости не отслеживаются — скрипт просто
+      повторяет команды;
+    \item флаги и компилятор захардкожены в тексте скрипта;
+    \item не масштабируется: 50 исходников → 50 строк скрипта
+      + 1 строка линковки;
+    \item скрипт не отвечает на вопрос «что из проекта нужно
+      пересобрать?».
+  \end{itemize}
+  \begin{terminalwindow}
+$ ./build.sh
+$ ./calc
+2 + 3 = 5
+10 - 4 = 6
+6 * 7 = 42
+20 / 5 = 4
+  \end{terminalwindow}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 7: правило GNU Make — анатомия
+% Схема в две строки с буквальным маркером <TAB>: реального
+% файла с таким содержимым не существует (табуляция в
+% Makefile — настоящий символ TAB), поэтому листинг
+% допустимо оставить in-place.
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Правило GNU Make: анатомия}
+  \small
+  \begin{myinplacelisting}[minted language=text,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt}]
+цели: зависимости
+<TAB>рецепт
+  \end{myinplacelisting}
+  \footnotemark[1]\footnotemark[2]
+  \begin{itemize}
+    \item \textbf{цели} — что строим (файлы: \texttt{calc},
+      \texttt{calc.o}, …);
+    \item \textbf{зависимости} — что нужно для цели (файлы);
+    \item \textbf{рецепт} — shell-команда, пересоздающая цель;
+    \item рецепт начинается с \textbf{табуляции}, а не с
+      пробелов (частая ошибка новичка);
+    \item make выполняет рецепт, если цель отсутствует или
+      \textbf{старше} любой из зависимостей (сравниваются
+      метки времени).
+  \end{itemize}
+  \footnotetext[1]{%
+    § 2.1 «What a Rule Looks Like» —
+    \url{\makemanual\#What-a-Rule-Looks-Like}}
+  \footnotetext[2]{%
+    § 4.2 «Rule Syntax» —
+    \url{\makemanual\#Rule-Syntax-1}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 8: первый Makefile — все правила руками
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Первый Makefile: все правила руками}
+  \small
+  \myinputlisting[minted language=make]
+    {presentations/01-gnu-make/src/}
+    {Makefile.01}
+  \begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+    \item максимальная явность: каждое действие записано
+      полностью;
+    \item \texttt{calc.h} в зависимостях \textbf{обоих}
+      \texttt{.o} — правило «заголовок изменился → пересобрать
+      всё, что его включает»;
+    \item \texttt{make} без аргументов собирает первую цель
+      файла — \texttt{calc}\footnotemark[3]\footnotemark[4].
+  \end{itemize}
+  \footnotetext[3]{%
+    гл. 4 «Writing Rules» —
+    \url{\makemanual\#Writing-Rules}}
+  \footnotetext[4]{%
+    § 2.2 «A Simple Makefile» —
+    \url{\makemanual\#A-Simple-Makefile}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 9: инкрементальная сборка — что это даёт (часть 1)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Инкрементальная сборка: что это даёт}
+  \small
+  \begin{terminalwindow}
+$ make
+cc -Wall -O2 -c main.c -o main.o
+cc -Wall -O2 -c calc.c -o calc.o
+cc main.o calc.o -o calc
+$ make
+make: 'calc' is up to date.
+$ touch calc.c
+$ make
+cc -Wall -O2 -c calc.c -o calc.o
+cc main.o calc.o -o calc
+  \end{terminalwindow}
+  \footnotemark[5]
+  \footnotetext[5]{%
+    § 2.3 «How make Processes a Makefile» —
+    \url{\makemanual\#How-make-Processes-a-Makefile}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 10: инкрементальная сборка — что это даёт (часть 2)
+%------------------------------------------------------------------
+\begin{frame}{Инкрементальная сборка: что это даёт}
+  \small
+  \begin{itemize}
+    \item повторный запуск: make сравнивает метки времени и не
+      выполняет ни одной команды;
+    \item изменился только \texttt{calc.c} → перекомпилирован
+      только он; \texttt{main.o} не тронут;
+    \item линковка всё же выполнена: \texttt{calc} оказался
+      старше нового \texttt{calc.o};
+    \item вывод \texttt{make} — живая «отчётность»: видно, что
+      именно делалось.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 11: автоматические переменные (часть 1)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Упрощение 1: автоматические переменные}
+  \small
+  \myinputlisting[minted language=make]
+    {presentations/01-gnu-make/src/}
+    {Makefile.02}
+  \footnotemark[6]
+  \footnotetext[6]{%
+    § 10.5.3 «Automatic Variables» —
+    \url{\makemanual\#Automatic-Variables}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 12: автоматические переменные (часть 2)
+%------------------------------------------------------------------
+\begin{frame}{Упрощение 1: автоматические переменные}
+  \small
+  \begin{center}
+    \small
+    \begin{tabular}{@{}p{2.0cm}p{3.4cm}p{6.8cm}@{}}
+      \textbf{Переменная} & \textbf{Что подставляет}
+        & \textbf{Пример из нашего Makefile} \\
+      \texttt{\$@} & имя цели & в правиле \texttt{main.o: …}
+        это \texttt{main.o} \\
+      \texttt{\$<} & \textbf{первая} зависимость & исходный
+        \texttt{.c}-файл \\
+      \texttt{\$\^} & \textbf{все} зависимости & в правиле
+        линковки — оба \texttt{.o} \\
+    \end{tabular}
+  \end{center}
+  \begin{itemize}
+    \item \small правило перестаёт «помнить» имена файлов:
+      проще переименовать, легче копировать в новый проект.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 13: шаблонные правила
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Упрощение 2: шаблонные правила}
+  \small
+  \myinputlisting[minted language=make]
+    {presentations/01-gnu-make/src/}
+    {Makefile.03}
+  \footnotemark[7]\footnotemark[8]
+  \begin{itemize}
+    \item \texttt{\%} — «ствол» имени: для цели
+      \texttt{main.o} ствол — \texttt{main}, поэтому
+      \texttt{\$<} = \texttt{main.c};
+    \item \texttt{calc.h} оставлен в зависимостях шаблона:
+      make не знает, что наши исходники включают этот
+      заголовок;
+    \item новый исходник: положить \texttt{.c}-файл и добавить
+      его имя в правило линковки — отдельное правило на него
+      не пишется.
+  \end{itemize}
+  \footnotetext[7]{%
+    гл. 10 «Using Implicit Rules» —
+    \url{\makemanual\#Using-Implicit-Rules}}
+  \footnotetext[8]{%
+    § 10.5.1 «Introduction to Pattern Rules» —
+    \url{\makemanual\#Introduction-to-Pattern-Rules}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 14: встроенные неявные правила (часть 1)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Встроенные неявные правила: что умеет
+  make «из коробки»}
+  \small
+  \myinputlisting[minted language=make]
+    {presentations/01-gnu-make/src/}
+    {Makefile.03b}
+  \begin{terminalwindow}
+$ make
+cc    -c -o calc.o calc.c
+cc    -c -o main.o main.c
+cc   calc.o main.o   -o calc
+$ touch calc.h
+$ make
+make: 'calc' is up to date.
+  \end{terminalwindow}
+  \footnotemark[9]
+  \footnotetext[9]{%
+    § 10.2 «Catalogue of Built-In Rules» —
+    \url{\makemanual\#Catalogue-of-Built_002dIn-Rules}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 15: встроенные неявные правила (часть 2)
+%------------------------------------------------------------------
+\begin{frame}{Встроенные неявные правила: что умеет
+  make «из коробки»}
+  \small
+  \begin{itemize}
+    \item make знает встроенное правило \texttt{\%.o: \%.c}
+      (и правило линковки) — сборка «прошла» вообще без
+      правил;
+    \item но флаги \texttt{-Wall -O2} исчезли, а
+      \texttt{calc.h} не входит в зависимости;
+    \item изменение заголовка make не заметил — сборка стала
+      \textbf{неправильной} (бинарник устарел, но make этого
+      не знает);
+    \item вывод: встроенные правила — удобная отправная
+      точка; для серьёзного проекта пишем свои шаблоны.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 16: финальный Makefile простого проекта (часть 1)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Финальный Makefile простого проекта}
+  \small
+  \myinputlisting[minted language=make]
+    {presentations/01-gnu-make/src/}
+    {Makefile.04}
+  \footnotemark[10]
+  \footnotetext[10]{%
+    гл. 6 «How to Use Variables» —
+    \url{\makemanual\#How-to-Use-Variables}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 17: финальный Makefile простого проекта (часть 2)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Финальный Makefile простого проекта}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{terminalwindow}
+$ touch calc.h
+$ make
+cc -Wall -O2 -c main.c -o main.o
+cc -Wall -O2 -c calc.c -o calc.o
+cc -Wall -O2 main.o calc.o -o calc
+      \end{terminalwindow}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{itemize}
+        \item компилятор и флаги вынесены в переменные —
+          меняются в одном месте;
+        \item изменение \texttt{calc.h} → перекомпилированы
+          \textbf{оба} \texttt{.o}: слежение за заголовком
+          работает;
+        \item итог преобразования: 3 раздутых правила → 1
+          шаблон + 2 переменные;
+        \item 8 строк — вся сборочная система маленького
+          проекта.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 18: служебные цели all, clean, help (часть 1: листинг,
+% строки 1–10 из 18)
+% 18-строчный листинг с заголовком кадра и подписью файла не
+% влезает в один кадр, поэтому разбит на два: строки 1–10.
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Служебные цели: \texttt{all},
+  \texttt{clean}, \texttt{help}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=10}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.05}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 19: служебные цели all, clean, help (часть 2: листинг,
+% строки 11–18)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Служебные цели: \texttt{all},
+  \texttt{clean}, \texttt{help}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=11}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.05}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 20: служебные цели all, clean, help (часть 3:
+% пояснения)
+%------------------------------------------------------------------
+\begin{frame}{Служебные цели: \texttt{all}, \texttt{clean},
+  \texttt{help}}
+  \small
+  \footnotemark[11]\footnotemark[12]
+  \begin{itemize}\setlength{\itemsep}{0pt}\setlength{\parsep}{0pt}
+    \item \texttt{all} — первая цель файла; \texttt{make} без
+      аргументов = «построй всё»;
+    \item \texttt{clean} — удаляет артефакты
+      (\texttt{rm -f …}), возвращает каталог в исходное
+      состояние;
+    \item \texttt{help} — печатает список целей; \texttt{@} в
+      начале команды подавляет её вывод\footnotemark[13];
+    \item строка \texttt{.PHONY: all clean help} — «это не
+      файлы» (почему — на следующем слайде).
+  \end{itemize}
+  \footnotetext[11]{%
+    § 2.7 «Rules for Cleaning the Directory» —
+    \url{\makemanual\#Rules-for-Cleaning-the-Directory}}
+  \footnotetext[12]{%
+    § 16.6 «Standard Targets for Users» —
+    \url{\makemanual\#Standard-Targets-for-Users}}
+  \footnotetext[13]{%
+    § 5.2 «Recipe Echoing» —
+    \url{\makemanual\#Recipe-Echoing}
+    (о символе \texttt{@})}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 21: зачем нужен .PHONY (часть 1)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Зачем нужен \texttt{.PHONY}}
+  \small
+  \begin{itemize}
+    \item Сценарий: в каталоге появляется файл с именем
+      \texttt{clean} (ошибка имени, временный файл, …).
+    \item Демонстрация на \texttt{Makefile.05bug} — тот же
+      Makefile \textbf{без} строки \texttt{.PHONY}.
+  \end{itemize}
+  \begin{terminalwindow}
+$ touch clean
+$ make clean
+make: 'clean' is up to date.
+$ ls
+build.sh  calc  calc.c  calc.h  calc.o  clean  main.c  main.o  …
+  \end{terminalwindow}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 22: зачем нужен .PHONY (часть 2)
+%------------------------------------------------------------------
+\begin{frame}{Зачем нужен \texttt{.PHONY}}
+  \small
+  \begin{itemize}
+    \item цель \texttt{clean} совпала по имени с файлом → make
+      рассматривает её как файл;
+    \item файл существует и зависимостей не имеет → «в
+      актуальном состоянии», рецепт \textbf{не выполняется} —
+      артефакты не удалены;
+    \item \texttt{.PHONY} объявляет цели фиктивными: файл с
+      таким именем игнорируется, рецепт выполняется всегда;
+    \item правило: все «псевдоцели» (\texttt{all},
+      \texttt{clean}, …) должны входить в
+      \texttt{.PHONY}\footnotemark[14]\footnotemark[15].
+  \end{itemize}
+  \footnotetext[14]{%
+    § 4.6 «Phony Targets» —
+    \url{\makemanual\#Phony-Targets-1}}
+  \footnotetext[15]{%
+    § 4.9 «Special Built-in Target Names» —
+    \url{\makemanual\#Special-Built_002din-Target-Names}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 23: статическая библиотека libcalc.a (часть 1)
+% Заголовок уменьшен до \normalsize: длинный заголовок в \large
+% перекрывает логотип в правом верхнем углу.
+%------------------------------------------------------------------
+\setbeamerfont{frametitle}{size=\normalsize}
+\begin{frame}{Проект посложнее: статическая библиотека
+  \texttt{libcalc.a}}
+  \small
+  \begin{itemize}
+    \item Дерево не меняется, но роли: \texttt{calc.c} — код
+      \textbf{библиотеки}, \texttt{main.c} — \textbf{клиент};
+    \item артефакты: \texttt{libcalc.a} (статическая
+      библиотека) + \texttt{calc} (клиентский exe).
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 24: статическая библиотека libcalc.a (часть 2:
+% листинг, строки 1–10 из 18)
+% 18-строчный листинг с заголовком кадра и подписью файла не
+% влезает в один кадр, поэтому разбит на два: строки 1–10.
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Проект посложнее: статическая
+  библиотека \texttt{libcalc.a}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=10}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.06}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 25: статическая библиотека libcalc.a (часть 3:
+% листинг, строки 11–18)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Проект посложнее: статическая
+  библиотека \texttt{libcalc.a}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=11}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.06}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 26: статическая библиотека libcalc.a (часть 4)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Проект посложнее: статическая
+  библиотека \texttt{libcalc.a}}
+  \small
+  \begin{columns}[T]
+    \begin{column}{0.55\textwidth}
+      \begin{terminalwindow}
+$ make
+cc -Wall -O2 -c main.c -o main.o
+cc -Wall -O2 -c calc.c -o calc.o
+ar rcs libcalc.a calc.o
+cc main.o libcalc.a -o calc
+$ touch calc.c
+$ make
+cc -Wall -O2 -c calc.c -o calc.o
+ar rcs libcalc.a calc.o
+cc main.o libcalc.a -o calc
+      \end{terminalwindow}
+    \end{column}
+    \begin{column}{0.40\textwidth}
+      \begin{itemize}
+        \item \texttt{ar rcs} — положить \texttt{calc.o} в
+          архив и построить индекс символов;
+        \item изменился \texttt{calc.c} → пересобрана
+          библиотека и перелинкован клиент, \texttt{main.o} не
+          тронут;
+        \item шаблонное правило \texttt{\%.o: \%.c calc.h}
+          одинаково работает для кода библиотеки и клиента;
+        \item статическая библиотека «вшивается» в
+          исполняемый файл при линковке.
+      \end{itemize}
+    \end{column}
+  \end{columns}
+\end{frame}
+\setbeamerfont{frametitle}{size=\Large}
+
+%------------------------------------------------------------------
+% Слайд 27: динамическая библиотека libcalc.so (часть 1:
+% листинг, строки 1–10 из 18)
+% 18-строчный листинг с заголовком кадра и подписью файла не
+% влезает в один кадр, поэтому разбит на два: строки 1–10.
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Динамическая библиотека
+  \texttt{libcalc.so}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=10}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.07}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 28: динамическая библиотека libcalc.so (часть 2:
+% листинг, строки 11–18)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Динамическая библиотека
+  \texttt{libcalc.so}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=11}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.07}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 29: динамическая библиотека libcalc.so (часть 3:
+% терминал)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Динамическая библиотека
+  \texttt{libcalc.so}}
+  \small
+  \begin{terminalwindow}
+$ make
+cc -Wall -O2 -fPIC -c main.c -o main.o
+cc -Wall -O2 -fPIC -c calc.c -o calc.o
+cc -shared calc.o -o libcalc.so
+cc main.o libcalc.so -o calc
+$ ./calc
+./calc: error while loading shared libraries:
+    libcalc.so: cannot open shared object file: No such file or directory
+$ LD_LIBRARY_PATH=. ./calc
+2 + 3 = 5
+10 - 4 = 6
+6 * 7 = 42
+20 / 5 = 4
+  \end{terminalwindow}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 30: динамическая библиотека libcalc.so (часть 4)
+%------------------------------------------------------------------
+\begin{frame}{Динамическая библиотека \texttt{libcalc.so}}
+  \small
+  \begin{itemize}
+    \item код библиотеки компилируется с \texttt{-fPIC}
+      (независимый от адреса), сама библиотека линкуется с
+      \texttt{-shared};
+    \item исполняемый файл хранит лишь \textbf{имя}
+      \texttt{libcalc.so} — загрузка происходит в момент
+      запуска;
+    \item загрузчику нужно знать, где искать:
+      \texttt{LD\_LIBRARY\_PATH=.} (в production — rpath или
+      системные каталоги);
+    \item отличие от статической: библиотека не вшита в
+      \texttt{calc}, общий код обновляется заменой
+      \texttt{.so}.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 31: встроенные функции (часть 1: листинг,
+% строки 1–14 из 22)
+% Исходный слайд переполнял кадр, листинг разбит; строки 1–14
+% идут в кадр с заголовком.
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Встроенные функции: \texttt{\$(wildcard)},
+  \texttt{\$(patsubst)}, \texttt{\$(shell)}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=14}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.08}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 32: встроенные функции (часть 2: листинг,
+% строки 15–22, терминал)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Встроенные функции: \texttt{\$(wildcard)},
+  \texttt{\$(patsubst)}, \texttt{\$(shell)}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=15}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.08}
+  \begin{terminalwindow}
+$ make info
+Compiler: clang version 21.1.8
+Sources : calc.c main.c
+  \end{terminalwindow}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 33: встроенные функции (часть 3: таблица, строки 1–2,
+% сноски 16–18)
+% Вся таблица + все 4 сноски не влезает ни в один кадр
+% (проверено измерением), таблица разбита: строки 1–2 идут в
+% кадр с заголовком; сноска 19 — в кадре 34, у строки про
+% \$(shell). Отметки сносок 16–18 стоят в столбце «Функция»
+% на строках своих функций: отдельная строка с отметками
+% переполняла кадр на 12,3pt (высота строки \small).
+% \topsep=0pt убирает клей \topsep (10pt сверху/снизу)
+% вокруг center'а — без этого не хватало 2,8pt по высоте.
+%------------------------------------------------------------------
+\begin{frame}{Встроенные функции: \texttt{\$(wildcard)},
+  \texttt{\$(patsubst)}, \texttt{\$(shell)}}
+  \small
+  \setlength{\topsep}{0pt}
+  \setlength{\tabcolsep}{5pt}
+  \begin{center}
+    \begin{tabular}{@{}p{5.0cm}p{3.8cm}p{4.5cm}@{}}
+      \textbf{Функция} & \textbf{Что делает}
+        & \textbf{Где используется в \texttt{calc}} \\
+      \texttt{\$(wildcard *.c)}\footnotemark[16]\footnotemark[17]
+      & shell-подобный глоб: список
+        всех \texttt{.c} в каталоге & список исходников
+        ведётся автоматически, новый файл «появляется» в
+        сборке сам \\
+      \texttt{\$(patsubst \%.c,\%.o,\$(SRCS))}\footnotemark[18]
+        & подстановка по образцу: \texttt{main.c → main.o}
+        & из списка исходников автоматически получается список
+        объектов \\
+    \end{tabular}
+  \end{center}
+  \footnotetext[16]{%
+    гл. 8 «Functions for Transforming Text» —
+    \url{\makemanual\#Functions-for-Transforming-Text}}
+  \footnotetext[17]{%
+    § 8.3 «Functions for File Names» —
+    \url{\makemanual\#Functions-for-File-Names}
+    (\texttt{\$(wildcard)})}
+  \footnotetext[18]{%
+    § 8.2 «Functions for String Substitution and Analysis» —
+    \url{\makemanual\#Functions-for-String-Substitution-and-Analysis}
+    (\texttt{\$(patsubst)})}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 34: встроенные функции (часть 4: строка 3 таблицы,
+% сноска 19)
+%------------------------------------------------------------------
+\begin{frame}{Встроенные функции: \texttt{\$(wildcard)},
+  \texttt{\$(patsubst)}, \texttt{\$(shell)}}
+  \small
+  \setlength{\tabcolsep}{5pt}
+  \begin{center}
+    \begin{tabular}{@{}p{5.0cm}p{3.8cm}p{4.5cm}@{}}
+      \textbf{Функция} & \textbf{Что делает}
+        & \textbf{Где используется в \texttt{calc}} \\
+      \texttt{\$(shell \$(CC) --version \textbar head -n1)}\footnotemark[19]
+        & shell-команда, выполняемая при разборе Makefile
+        & версия компилятора в цели \texttt{info} \\
+    \end{tabular}
+  \end{center}
+  \begin{itemize}
+    \item результат функций вычисляется при раскрытии
+      переменной.
+  \end{itemize}
+  \footnotetext[19]{%
+    § 8.14 «The shell Function» —
+    \url{\makemanual\#The-shell-Function}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 35: пользовательские функции (часть 1: листинг,
+% строки 1–13 из 23)
+% 23-строчный листинг с заголовком кадра не влезает в один
+% кадр, поэтому разбит на два: строки 1–13. Сноски 20–22
+% стоят в кадре 36, в конце второй части.
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Пользовательские функции: \texttt{define},
+  \texttt{call}, \texttt{eval}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=13}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.09}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 36: пользовательские функции (часть 2: листинг,
+% строки 14–23)
+%------------------------------------------------------------------
+\begin{frame}[fragile]{Пользовательские функции: \texttt{define},
+  \texttt{call}, \texttt{eval}}
+  \small
+  \myinputlisting[minted language=make,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=14}]
+    {presentations/01-gnu-make/src/}
+    {Makefile.09}
+  \footnotemark[20]\footnotemark[21]\footnotemark[22]
+  \footnotetext[20]{%
+    § 8.1 «Function Call Syntax» —
+    \url{\makemanual\#Function-Call-Syntax}}
+  \footnotetext[21]{%
+    § 8.8 «The call Function» —
+    \url{\makemanual\#The-call-Function}}
+  \footnotetext[22]{%
+    § 8.10 «The eval Function» —
+    \url{\makemanual\#The-eval-Function}}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 37: пользовательские функции (часть 3: пояснения)
+%------------------------------------------------------------------
+\begin{frame}{Пользовательские функции: \texttt{define},
+  \texttt{call}, \texttt{eval}}
+  \small
+  \begin{itemize}
+    \item \texttt{define … endef} — многострочная переменная
+      (тело функции) с плейсхолдерами \texttt{\$(1)},
+      \texttt{\$(2)};
+    \item \texttt{\$(call BUILD\_STATIC\_LIB,libcalc,calc.o)}
+      — подстановка аргументов в тело;
+    \item \texttt{\$(eval …)} — результат разбирается как код
+      Makefile: правило \texttt{libcalc.a: calc.o}
+      \textbf{генерируется} при разборе файла;
+    \item \texttt{\$\$@} / \texttt{\$\$\^} в теле —
+      экранированный доллар: в рецепт попадут живые
+      \texttt{\$@} и \texttt{\$\^};
+    \item одной функцией можно сгенерировать правила для
+      сколь угодно многих библиотек (вызвать N раз);
+    \item тонкость: \texttt{\$(eval …)} в начале файла делает
+      сгенерированную цель \textbf{дефолтной} (первая цель
+      файла) — поэтому \texttt{all: calc} стоит выше вызова.
+  \end{itemize}
+\end{frame}
+
+%------------------------------------------------------------------
+% Слайд 38: итоги
+%------------------------------------------------------------------
+\begin{frame}{Итоги}
+  \small
+  \begin{itemize}
+    \item Правило = \texttt{цели: зависимости} + рецепт
+      (TAB); make принимает решения по меткам времени — отсюда
+      инкрементальная сборка.
+    \item Автоматические переменные (\texttt{\$@},
+      \texttt{\$<}, \texttt{\$\^}) и шаблонные правила убирают
+      шаблонный код; встроенные правила — отправная точка, а
+      не замена своим.
+    \item Служебные цели \texttt{all}, \texttt{clean},
+      \texttt{help} + \texttt{.PHONY} защищают от коллизий с
+      именами файлов.
+    \item Функции (\texttt{\$(wildcard)},
+      \texttt{\$(patsubst)}, \texttt{\$(shell)},
+      \texttt{define/call/eval}) масштабируют сборку на
+      большие проекты.
+    \item Руководство GNU Make: \url{\makemanual}\footnotemark[23]
+  \end{itemize}
+  \footnotetext[23]{%
+    Руководство GNU Make, гл. 2 «Makefiles» —
+    \url{\makemanual\#Makefiles}}
+\end{frame}
+
+\end{document}

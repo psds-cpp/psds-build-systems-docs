@@ -1,0 +1,23 @@
+CC     = cc
+CFLAGS = -Wall -O2
+
+all: calc
+
+# User-defined function: generates a rule for building a static library
+define BUILD_STATIC_LIB
+$(1).a: $(2)
+	ar rcs $$@ $$^
+endef
+
+$(eval $(call BUILD_STATIC_LIB,libcalc,calc.o))
+
+calc: main.o libcalc.a
+	$(CC) $^ -o $@
+
+%.o: %.c calc.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f calc *.o *.a
+
+.PHONY: all clean

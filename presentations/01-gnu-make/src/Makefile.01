@@ -1,0 +1,8 @@
+calc: main.o calc.o
+	cc main.o calc.o -o calc
+
+main.o: main.c calc.h
+	cc -Wall -O2 -c main.c -o main.o
+
+calc.o: calc.c calc.h
+	cc -Wall -O2 -c calc.c -o calc.o

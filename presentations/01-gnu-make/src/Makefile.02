@@ -1,0 +1,8 @@
+calc: main.o calc.o
+	cc $^ -o $@
+
+main.o: main.c calc.h
+	cc -Wall -O2 -c $< -o $@
+
+calc.o: calc.c calc.h
+	cc -Wall -O2 -c $< -o $@

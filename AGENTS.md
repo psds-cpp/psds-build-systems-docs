@@ -28,7 +28,7 @@ graph TD
 * **Responsibilities:**
   * Prepares structured presentation plans based on PM requirements.
   * Writes final slide content and code listings in Russian Markdown.
-  * Saves drafts to `build/drafts/`.
+  * Saves drafts to `drafts/`.
 * **Context Access:** `websearch`, `webfetch` tools. Fully isolated from LaTeX.
 
 ### 3. latex-designer (`mode: subagent`)
