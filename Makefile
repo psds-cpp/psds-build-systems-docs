@@ -60,5 +60,6 @@ endef
 	presentations/images/prosoft-logo.png \
 	packages/terminal.sty \
 	packages/mylisting.sty \
-	$(wildcard presentations/01-gnu-make/src/*)
+	$(wildcard presentations/01-gnu-make/src/*) \
+	$(wildcard presentations/01-gnu-make/src/lib/*)
 	$(call generate_pdf,$<,$@)

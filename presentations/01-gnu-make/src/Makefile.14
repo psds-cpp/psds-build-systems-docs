@@ -1,0 +1,22 @@
+CC     = cc
+CFLAGS = -Wall -O2
+
+all: calc
+
+calc: main.o lib/libcalc.a
+	$(CC) $(CFLAGS) $^ -o $@
+
+main.o: main.c calc.h
+	$(CC) $(CFLAGS) -c main.c -o main.o
+
+# The library lives in a subdirectory:
+# make cannot see its files, so it must
+# be built by an explicit sub-make
+lib/libcalc.a:
+	$(MAKE) -C lib
+
+clean:
+	$(MAKE) -C lib clean
+	rm -f calc main.o
+
+.PHONY: all clean

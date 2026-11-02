@@ -359,6 +359,98 @@ cc -Wall -O2 main.o calc.o -o calc
 
 \end{frame}
 
+\begin{frame}[fragile]{Инициализация переменных: \texttt{=},
+  \texttt{:=}, \texttt{?=}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{itemize}
+
+        \item \texttt{=}\footnotemark{} — «рекурсивное» (отложенное)
+          присваивание: значение раскрывается в момент использования;
+          \texttt{:=} — «немедленное»: значение раскрывается в момент
+          определения;
+
+        \item \texttt{?=} — присваивает значение, только если переменная
+          ещё не определена (не затирает значение из командной строки
+          и из окружения).
+
+      \end{itemize}
+
+      \footnotetext{\url{\makeurlbase\#Setting-Variables}}
+
+      \bigbreak
+
+      \begin{terminalwindow}
+!\shellcommand{make}!
+B = final end
+Y = initial plus
+D = from makefile
+!\shellcommand{make show D="from command line"}!
+B = final end
+Y = initial plus
+D = from command line
+      \end{terminalwindow}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=make]
+        {presentations/01-gnu-make/src/}
+        {Makefile.10}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Переопределение переменных из командной
+  строки}
+
+  \begin{itemize}
+
+    \item переменная, заданная в командной строке
+      make\footnotemark{}, имеет приоритет над определением в
+      Makefile: \texttt{CC=gcc} подменяет \texttt{CC = cc} во всех
+      рецептах.
+
+  \end{itemize}
+
+  \footnotetext{\url{\makeurlbase\#Overriding-Variables}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=make,
+        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
+        linenos,numbersep=2pt}]
+        {presentations/01-gnu-make/src/}
+        {Makefile.11}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{make show}!
+CC     = cc
+CFLAGS = -Wall -O2
+!\shellcommand{make show CC=gcc CFLAGS="-Wall -O0"}!
+CC     = gcc
+CFLAGS = -Wall -O0
+      \end{terminalwindow}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
 \begin{frame}[fragile]{Служебные цели: \texttt{all},
   \texttt{clean}, \texttt{help}}
 
@@ -566,6 +658,260 @@ Sources : calc.c main.c
       сколь угодно многих библиотек (вызвать N раз);
 
   \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Один shell на весь рецепт: \texttt{.ONESHELL}}
+
+  \begin{itemize}
+
+    \item по умолчанию каждая строка рецепта — отдельный
+      shell: переменная \texttt{x} «умирает» после первой строки;
+
+    \item \texttt{.ONESHELL}\footnotemark{} — один shell на весь
+      рецепт: shell-переменные живут между строками рецепта.
+
+  \end{itemize}
+
+  \footnotetext{\url{\makeurlbase\#One-Shell}}
+
+  \bigbreak
+
+  \myinputlisting[minted language=make]
+    {presentations/01-gnu-make/src/}
+    {Makefile.12b}
+
+  \begin{terminalwindow}
+!\shellcommand{make -f Makefile.12 demo}!
+x=hello
+echo "x = $x"
+x = 
+!\shellcommand{make -f Makefile.12b demo}!
+x=hello
+echo "x = $x"
+x = hello
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Параллельная сборка: \texttt{-j} (1/2)}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.41\textwidth}
+
+      \begin{itemize}
+
+        \item \texttt{-j\ N}\footnotemark{} — не более N рецептов
+          выполняется одновременно (без аргумента — без ограничений);
+
+        \item переменной \texttt{JLEVEL} в GNU make нет
+          (это bmake): о количестве задач make «помнит»
+          в \texttt{MAKEFLAGS}/\texttt{MFLAGS}.
+
+      \end{itemize}
+
+      \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
+
+      \bigbreak
+
+      \begin{terminalwindow}
+!\shellcommand{make flags}!
+MAKEFLAGS = 
+!\shellcommand{make -j4 flags}!
+MAKEFLAGS = -j4
+      \end{terminalwindow}
+
+    \end{column}
+
+    \begin{column}{0.56\textwidth}
+
+      \myinputlisting[minted language=make,
+        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
+        linenos,numbersep=2pt,lastline=15}]
+        {presentations/01-gnu-make/src/}
+        {Makefile.13}
+
+      \textit{To be continued...}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Параллельная сборка: \texttt{-j} (2/2)}
+
+  \begin{itemize}
+
+    \item независимые цели \texttt{p1} и \texttt{p2}
+      с \texttt{-j2}\footnotemark{} стартуют одновременно: обе
+      «стартуют» до того, как закончилась любая из них
+      (~1 с вместо ~2 с).
+
+  \end{itemize}
+
+  \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
+
+  \textit{...continued}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=make,
+        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
+        linenos,numbersep=2pt,firstline=16}]
+        {presentations/01-gnu-make/src/}
+        {Makefile.13}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{make p1 p2}!
+p1: start
+p1: done
+p2: start
+p2: done
+!\shellcommand{make -j2 p1 p2}!
+p1: start
+p2: start
+p1: done
+p2: done
+      \end{terminalwindow}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Часто используемые флаги make: \texttt{-C},
+  \texttt{-f}}
+
+  \begin{itemize}
+
+    \item \texttt{-C\ dir}\footnotemark{} — перейти в каталог
+      \texttt{dir} до чтения makefile (make при этом печатает
+      \texttt{Entering/Leaving directory});
+
+    \item \texttt{-f\ name} — использовать в качестве makefile
+      файл \texttt{name}; по умолчанию make ищет
+      \texttt{GNUmakefile}, \texttt{makefile}, \texttt{Makefile}
+      по порядку.
+
+  \end{itemize}
+
+  \footnotetext{\url{\makeurlbase\#Summary-of-Options}}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{make -C src -f Makefile.08 info}!
+make: Entering directory '…/src'
+Compiler: clang version 21.1.8
+Sources : calc.c main.c
+make: Leaving directory '…/src'
+!\shellcommand{make -C src -f Makefile.08 clean}!
+make: Entering directory '…/src'
+rm -f calc calc.o main.o
+make: Leaving directory '…/src'
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Сборка подкаталога: верхний Makefile}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{itemize}
+
+        \item make не «видит» файлы внутри подкаталогов: цель
+          \texttt{lib/libcalc.a}\footnotemark{} объявлена
+          \textbf{без зависимостей} — рецепт срабатывает только при
+          отсутствии файла; что именно пересобирать внутри
+          \texttt{lib/}, решает под-make (проверено: после
+          \texttt{touch\ lib/calc.c} верхний make печатает
+          \texttt{Nothing to be done for 'all'});
+
+        \item в рецепте всегда \texttt{\$(MAKE)}, а не буквально
+          \texttt{make}: под-make запускается тем же make, которым
+          запущен верхний, и наследует его командные опции
+          (например, \texttt{-j}) через \texttt{MAKEFLAGS}.
+
+      \end{itemize}
+
+      \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=make,
+        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
+        linenos,numbersep=2pt}]
+        {presentations/01-gnu-make/src/}
+        {Makefile.14}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+% Файлы lib/calc.c и lib/calc.h намеренно не листятся ни в одном
+% кадре: они нужны только для реальной сборки демо рекурсивного
+% make (Makefile.14 + lib/Makefile). Поэтому check-listings.sh
+% помечает строки lib/calc.c — задокументированное ложное срабатывание.
+\begin{frame}[fragile]{Сборка подкаталога: \texttt{lib/Makefile}}
+
+  \begin{itemize}
+
+    \item под-make\footnotemark{} выполняет первую цель
+      \texttt{lib/Makefile} (\texttt{all}); в верхнем makefile
+      \texttt{Entering/Leaving directory 'lib'} — видимые маркеры
+      рекурсии.
+
+  \end{itemize}
+
+  \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=make]
+        {presentations/01-gnu-make/src/lib/}
+        {Makefile}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{make}!
+cc -Wall -O2 -c main.c -o main.o
+make -C lib
+make[1]: Entering directory '…/lib'
+cc -Wall -O2 -c calc.c -o calc.o
+ar rcs libcalc.a calc.o
+make[1]: Leaving directory '…/lib'
+cc -Wall -O2 main.o lib/libcalc.a -o calc
+!\shellcommand{make clean}!
+make -C lib clean
+make[1]: Entering directory '…/lib'
+rm -f calc.o libcalc.a
+make[1]: Leaving directory '…/lib'
+rm -f calc main.o
+      \end{terminalwindow}
+
+    \end{column}
+
+  \end{columns}
 
 \end{frame}
 

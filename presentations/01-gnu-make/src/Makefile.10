@@ -1,0 +1,19 @@
+# Recursive (deferred) assignment: value
+# is expanded when it is used
+A = start
+B = $(A) end
+A = final
+
+# Immediate assignment: value
+# is expanded when it is defined
+X := initial
+Y := $(X) plus
+X := updated
+
+# Only-if-not-assigned
+D ?= from makefile
+
+show:
+	@echo "B = $(B)"
+	@echo "Y = $(Y)"
+	@echo "D = $(D)"

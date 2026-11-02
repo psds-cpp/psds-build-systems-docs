@@ -1,0 +1,5 @@
+.ONESHELL:
+
+demo:
+	x=hello
+	echo "x = $$x"

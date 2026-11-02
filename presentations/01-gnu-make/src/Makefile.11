@@ -1,0 +1,18 @@
+CC     = cc
+CFLAGS = -Wall -O2
+
+# Prints the values the recipes will actually see
+show:
+	@echo "CC     = $(CC)"
+	@echo "CFLAGS = $(CFLAGS)"
+
+all: calc
+
+calc: main.o calc.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+%.o: %.c calc.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f calc *.o
