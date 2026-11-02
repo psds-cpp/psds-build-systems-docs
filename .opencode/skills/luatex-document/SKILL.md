@@ -99,7 +99,8 @@ When writing or changing LuaTeX code follow this rules:
   Edit this file only in great need as it potentially affects all other documents.
   You must ask for user's approval if change is to be applied to a template.
 
-- Use 4 spaces for identation.
+- Use 4 spaces per nesting level for indentation.
+  Verbatim content (listings, `terminalwindow`) is not indented.
 
 ## Fonts
 

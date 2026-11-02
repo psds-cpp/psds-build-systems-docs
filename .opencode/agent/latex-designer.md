@@ -56,6 +56,17 @@ These rules are short enough to survive long sessions and context
 compaction.
 The skills contain details.
 
+- Before creating or editing any `.tex` file you MUST load skill
+  `luatex-document` via the `skill` tool.
+  `luatex-presentation` extends `luatex-document`, it does not
+  replace it: load `luatex-document` first, then
+  `luatex-presentation`.
+  Never write or edit `.tex` in a session where `luatex-document`
+  is not loaded.
+
+- Your final report must contain the line `Skills loaded:` with
+  the list of skill ids you loaded in this session.
+
 - All code listings must use `myinputlisting` with source files in the
   document's `src/` folder.
   In-place listings are only for fragments which cannot exist

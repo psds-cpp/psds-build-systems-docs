@@ -6,6 +6,8 @@ description: Skill for writing and editing LuaTex presentations in this project
 This skill extends common rules for documents for all types from skill
 `luatex-document` and specifies these rules for presentation documents
 category.
+It extends, not replaces: if `luatex-document` is not loaded in this
+session yet, load it via the `skill` tool before applying this skill.
 
 # When to use
 

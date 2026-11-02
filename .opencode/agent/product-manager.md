@@ -33,6 +33,11 @@ user and in the team).
   for the task.
   You may suggest user an improvement using `edit-skill` skill.
 
+- Every task prompt to **latex-designer** must order it to load skill
+  `luatex-document` via the `skill` tool, then `luatex-presentation`,
+  before touching any `.tex` file, and to include the line
+  `Skills loaded:` with the loaded skill ids in its final report.
+
 # Business workflows
 
 ## Add new document
@@ -73,6 +78,11 @@ Use this workflow when user asks to add new document.
   Verify the document against every rule of the applicable `luatex-*`
   skills yourself, including the full `Validating presentations`
   checklist (run the checks, do not trust the report).
+  Check that the subagent's final report contains the line
+  `Skills loaded:` with `luatex-document` in it;
+  verify the subagent session history when in doubt.
+  If the skill was not loaded, reject the work and ask the subagent
+  to load it and re-run the checks.
   Use skill `install` here.
   Ask user to check document and approve it.
   If user does not approve it and says to change something, go back to
