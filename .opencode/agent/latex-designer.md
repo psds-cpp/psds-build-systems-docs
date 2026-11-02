@@ -73,6 +73,9 @@ The skills contain details.
   as real files.
 
 - Terminal sessions use `terminalwindow` from `packages/terminal.sty`.
+  Every shell command inside it must be rendered as
+  `!\shellcommand{cmd}!` (the minted escape region);
+  a plain `$` text prompt is forbidden.
   Student tasks use `mytask` from `packages/mytask.sty`.
 
 - Keep LaTeX source lines under 100 characters.

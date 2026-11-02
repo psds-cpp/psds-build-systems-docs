@@ -178,18 +178,22 @@ When writing or changing LuaTeX code follow this rules:
   Use the `terminalwindow` environment for terminal sessions.
   Edit this file only in great need as it potentially affects all other documents.
   You must ask for user's approval if change is to be applied to a package.
+
+- Every shell command in a terminal session MUST be rendered with
+  `\shellcommand{...}` from the same package:
+  it adds the prompt automatically and makes the command bold.
+  `terminalwindow` is a minted listing, so the macro must be placed
+  inside the escape region `!...!` (both delimiters are `!`).
+  A plain `$` character as a text prompt is forbidden:
+  it is not bold and it is not the prompt macro.
   Example:
   ```tex
   \begin{terminalwindow}
-  $ ./build.sh
-  $ ./calc
+  !\shellcommand{./build.sh}!
+  !\shellcommand{./calc}!
   2 + 3 = 5
   \end{terminalwindow}
   ```
 
-- When need to render prompt in terminal, use `\shellprompt` from the
-  same package.
-
-- When need to render shell command in terminal, use `\shellcommand{gcc --version}`
-  from the same package.
-  It will automatically include prompt and enable text formatting.
+- When a bare prompt (without a command) is needed, use
+  `\shellprompt` from the same package, also inside `!...!`.
