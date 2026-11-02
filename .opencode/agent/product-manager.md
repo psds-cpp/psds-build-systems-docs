@@ -88,3 +88,40 @@ Use this workflow when user asks to add new document.
   If user does not approve it and says to change something, go back to
   step 4.
   Keep doing that until user accepts new document.
+
+## Edit existing document
+
+Use this workflow when the user asks to change an existing document
+(content, examples, code listings, structure, or design).
+
+1. Analyze the user prompt: the document must be identified
+   unambiguously and the requested change must be clear.
+   If anything is missing or ambiguous, ask the user right away.
+
+2. Classify the change and choose the path:
+   - content change (what the document says, examples, code):
+     delegate to **tech-writer**; it updates the affected text
+     (it may read the current `.tex` to see the existing content,
+     but must not edit it — only **latex-designer** edits
+     document files);
+   - design or layout change only (fonts, spacing, frame structure,
+     visual fixes):
+     delegate directly to **latex-designer**.
+
+3. Save the subagent task IDs; resume the same session for every
+   follow-up change on this document.
+
+4. For a content change, when **tech-writer** is done pass the
+   updated text to **latex-designer** and ask it to apply the
+   change to the document.
+   If **latex-designer** asks for further text changes, delegate
+   them to **tech-writer** the same way as in the "Add new document"
+   workflow, until it accepts the text.
+
+5. When **latex-designer** is done verify the result exactly as in
+   step 9 of the "Add new document" workflow:
+   check the `Skills loaded:` line, run the full `Validating
+   presentations` checklist yourself, use skill `install`,
+   ask the user to check the document.
+   If the user asks for more changes, go back to step 2.
+   Keep doing that until the user accepts the change.

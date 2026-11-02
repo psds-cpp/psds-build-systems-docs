@@ -8,10 +8,14 @@
         { "action": "websearch", "resource": "*", "effect": "allow" },
         { "action": "webfetch",  "resource": "*", "effect": "allow" },
         { "action": "shell",     "resource": "*", "effect": "allow" },
+        { "action": "shell", "resource": "git commit*", "effect": "deny" },
+        { "action": "shell", "resource": "git push*",   "effect": "deny" },
+        { "action": "shell", "resource": "git reset*",  "effect": "deny" },
         { "action": "edit",      "resource": "*", "effect": "allow" },
         { "action": "edit", "resource": ".opencode/*",   "effect": "deny" },
         { "action": "edit", "resource": "opencode.json", "effect": "deny" },
-        { "action": "edit", "resource": "AGENTS.md",     "effect": "deny" }
+        { "action": "edit", "resource": "AGENTS.md",     "effect": "deny" },
+        { "action": "skill", "resource": "*", "effect": "deny" }
       ]
     },
     "latex-designer": {
@@ -33,7 +37,6 @@
         { "action": "subagent", "resource": "*", "effect": "allow" },
         { "action": "question", "resource": "*", "effect": "allow" },
         { "action": "shell",    "resource": "*", "effect": "allow" },
-        { "action": "shell",    "resource": "git commit*", "effect": "deny" },
         { "action": "shell",    "resource": "git push*",   "effect": "deny" },
         { "action": "shell",    "resource": "git reset*",  "effect": "deny" },
         { "action": "shell",    "resource": "git commit*", "effect": "allow" },

@@ -86,7 +86,7 @@ When adding new document (say, `<NAME>.pdf`) follow these rules:
 When writing or changing LuaTeX code follow this rules:
 
 - Category specific rules are described in skill for appropriate
-  document category (i.e. `luatex-presentations`).
+  document category (i.e. `luatex-presentation`).
 
 - Keep LaTeX lines under width of 80-100 characters.
 
