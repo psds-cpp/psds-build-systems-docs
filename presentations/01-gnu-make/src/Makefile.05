@@ -14,5 +14,3 @@ clean:
 
 help:
 	@echo "Targets: all (default), clean, help"
-
-.PHONY: all clean help

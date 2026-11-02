@@ -1,0 +1,18 @@
+CC = cc
+CFLAGS = -Wall -O2
+
+all: calc
+
+calc: main.o calc.o
+	$(CC) $(CFLAGS) $^ -o $@
+
+%.o: %.c calc.h
+	$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	rm -f calc main.o calc.o
+
+help:
+	@echo "Targets: all (default), clean, help"
+
+.PHONY: all clean help
