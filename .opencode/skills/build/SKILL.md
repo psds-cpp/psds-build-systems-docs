@@ -7,14 +7,28 @@ compatibility: opencode
 # Build single presentation
 
 Use this skill when testing build of document in progress.
-It will enable you to build one document and not all of them and
-you will see compilation logs in the same command:
+It will enable you to build one document and not all of them:
 
 ```shell
-nix develop --command make <NAME>.pdf
+nix develop --command make <NAME>.pdf > /tmp/opencode/<NAME>.build.out 2>&1
 ```
 
 where `<NAME>.pdf` is build target from Makefile.
+
+### Output discipline
+
+- Always redirect the whole build output to a file as shown above.
+  Never let full LaTeX logs flow into the tool result.
+  They overflow the model context and the provider rejects
+  the request with HTTP 413.
+- After the build, inspect only small windows of the output file:
+  ```shell
+  tail -n 30 /tmp/opencode/<NAME>.build.out
+  grep -n -E "^!|Overfull|Emergency" /tmp/opencode/<NAME>.build.out
+  ```
+- Do not read or cat the whole build output file.
+- Give the command a timeout of at least 600000 ms.
+  A cold `nix develop` is slow.
 
 ### Build Artifacts
 * **Target PDF:** Appears in `build/<NAME>.pdf` upon successful compilation.
@@ -31,5 +45,5 @@ and you may want to delete them.
 Use command:
 
 ```shell
-nix develop --command make clean
+nix develop --command make clean > /tmp/opencode/clean.out 2>&1
 ```

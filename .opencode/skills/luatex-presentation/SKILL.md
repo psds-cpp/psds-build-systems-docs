@@ -13,7 +13,25 @@ When in need to create new LuaTeX presentation or change existing one.
 
 # Add new presentation
 
-- All presentations must be added to `presentations` folder.
+- Every presentation must have a number.
+  Numbers represent the order in which documents are read.
+  First number is `01`, then `02`, `03`, etc.
+  The project does not support more than 100 documents.
+
+- Each presentation gets its own subfolder in `presentations`.
+  The `.tex` file lives inside that subfolder with the same
+  name.
+  Example: `presentations/01-cmake/01-cmake.tex`.
+
+- Every presentation gets its own rule in `Makefile`.
+  The generic `%.pdf: presentations/%.tex` pattern rule does
+  not match files inside subfolders, so a dedicated target
+  with prerequisites and a `$(call generate_pdf,$<,$@)`
+  recipe is required.
+  Also add entries to the `build`, `help` and `install`
+  targets.
+  See the "Add new document" section of the
+  `luatex-document` skill for the full recipe.
 
 - Presentations must be installed to `$(PREFIX)/presentations/` folder.
 
@@ -76,19 +94,20 @@ When in need to create new LuaTeX presentation or change existing one.
 
 - Columns must be top-aligned.
 
+- Slides without title are forbidden.
+
 ## Tasks
 
 - Project has designated package for rendering tasks for students
   (`packages/mytask.sty`).
-  Use it to show compilation error or how to run something.
-  Default escape sequence is exclamation marks surrounding TeX code.
+  Use the `mytask` environment to give a task on the frame.
   Edit this file only in great need as it potentially affects all other documents.
   You must ask for user's approval if change is to be applied to a package.
   Example:
   ```tex
-  \begin{task}[fontupper=\footnotesize]
+  \begin{mytask}
   Сделайте рефакторинг этого метода.
-  \end{task}
+  \end{mytask}
   ```
 
 # Validating presentations
@@ -119,3 +138,22 @@ perform these automated checks to ensure the presentation is flawless:
     ```shell
     pdfinfo build/<NAME>.pdf
     ```
+
+4. Check that code listings come from source files:
+    All code listings must use `myinputlisting` with source files in the
+    document's `src/` folder.
+    In-place listings (`myinplacelisting`, `mytitledinplacelisting`) are
+    only allowed for fragments which cannot exist as real files
+    (broken or commented-out code).
+    ```shell
+    grep -n "myinplacelisting\|mytitledinplacelisting" presentations/<NAME>/<NAME>.tex
+    ```
+    If it returns lines, move the code to `src/` files and switch frames
+    to `myinputlisting`, or explain in a comment why in-place is required.
+
+5. Check source line width:
+    LaTeX source lines must stay under 100 characters.
+    ```shell
+    awk 'length($0) > 100 { print FILENAME ": " FNR }' presentations/<NAME>/<NAME>.tex
+    ```
+    If it returns lines, wrap them.

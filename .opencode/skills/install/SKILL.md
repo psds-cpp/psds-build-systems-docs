@@ -10,11 +10,14 @@ Same actions will run in release workflow (see `.github/workflows/release.yml`).
 
 # Install all documents
 
-To compile and install all documents in this project use command:
+To compile and install all documents in this project:
 
-```shell
-nix build .
-```
+1. Add all relevant files to a Git index with `git add`.
+
+2. Build Nix derivation:
+  ```shell
+  nix build .
+  ```
 
 Use `build` skill to debug possible errors.
 

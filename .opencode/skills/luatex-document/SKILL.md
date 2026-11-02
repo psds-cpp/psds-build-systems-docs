@@ -156,18 +156,20 @@ When writing or changing LuaTeX code follow this rules:
 - Place sources for `myinputlisting` in `src/` folder in document directory.
   Example: `presentations/01-cmake/src/compile-options/CMakeLists.txt`
 
-## Commands in terminal
+## Terminal windows
 
-- Project has designated package for rendering something like terminal emulator
-  window with some content (`packages/terminal.sty`).
-  Use it when asked to ass task on the frame.
+- Project has designated package for rendering terminal emulator
+  windows (`packages/terminal.sty`).
+  Use the `terminalwindow` environment for terminal sessions.
   Edit this file only in great need as it potentially affects all other documents.
   You must ask for user's approval if change is to be applied to a package.
   Example:
   ```tex
-  \begin{mytask}[fontupper=\small]
-  Сделайте рефакторинг этого метода.
-  \end{mytask}
+  \begin{terminalwindow}
+  $ ./build.sh
+  $ ./calc
+  2 + 3 = 5
+  \end{terminalwindow}
   ```
 
 - When need to render prompt in terminal, use `\shellprompt` from the

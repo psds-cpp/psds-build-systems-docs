@@ -69,6 +69,9 @@ Use this workflow when user asks to add new document.
 
 9. When **latex-designer** is done check that requirements are fulfilled
   to the best of your ability.
+  Verify the document against every rule of the applicable `luatex-*`
+  skills yourself, including the full `Validating presentations`
+  checklist (run the checks, do not trust the report).
   Use skill `install` here.
   Ask user to check document and approve it.
   If user does not approve it and says to change something, go back to
