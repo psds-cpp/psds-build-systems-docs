@@ -16,7 +16,14 @@ To compile and install all documents in this project:
 
 2. Build Nix derivation:
   ```shell
-  nix build .
+  nix build . > /tmp/opencode/nix-build.out 2>&1
+  ```
+  The LLM gateway rejects request bodies over ~1 MiB with HTTP 413:
+  never let the build output flow into the tool result.
+  Inspect only small windows afterwards:
+  ```shell
+  tail -n 30 /tmp/opencode/nix-build.out
+  grep -n -E "^error|error:" /tmp/opencode/nix-build.out
   ```
 
 Use `build` skill to debug possible errors.

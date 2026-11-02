@@ -17,10 +17,16 @@ where `<NAME>.pdf` is build target from Makefile.
 
 ### Output discipline
 
+Hard limit: the LLM gateway rejects request bodies larger than
+~1 MiB with HTTP 413, and the session dies. Every byte a command
+prints into the tool result is re-sent to the provider on EVERY
+subsequent step of the session, so keep tool results small forever:
+
 - Always redirect the whole build output to a file as shown above.
   Never let full LaTeX logs flow into the tool result.
-  They overflow the model context and the provider rejects
-  the request with HTTP 413.
+- The rule applies to every command that can print more than a few KB
+  of output: any `nix build` / `nix develop` / `make` run,
+  e.g. `nix develop --command make -j1 all > /tmp/opencode/all.build.out 2>&1`.
 - After the build, inspect only small windows of the output file:
   ```shell
   tail -n 30 /tmp/opencode/<NAME>.build.out
@@ -29,6 +35,10 @@ where `<NAME>.pdf` is build target from Makefile.
 - Do not read or cat the whole build output file.
 - Give the command a timeout of at least 600000 ms.
   A cold `nix develop` is slow.
+- If a step fails with HTTP 413 (Payload Too Large), the session
+  history is already over the limit: do not retry in the same
+  session — report to the PM; a fresh subagent session with a
+  compact prompt continues the work.
 
 ### Build Artifacts
 * **Target PDF:** Appears in `build/<NAME>.pdf` upon successful compilation.

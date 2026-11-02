@@ -162,7 +162,30 @@ When in need to create new LuaTeX presentation or change existing one.
 
 All validation instruments must be executed within the `nix develop` environment.
 After running `nix develop --command make <NAME>.pdf`,
-perform these automated checks to ensure the presentation is flawless:
+perform these automated checks to ensure the presentation is flawless.
+
+## Request payload budget (mandatory, read first)
+
+The LLM gateway rejects any request body larger than ~1 MiB with
+HTTP 413, and the session dies with a retry loop. The ENTIRE
+conversation history — including every image ever read — is re-sent
+to the provider on every single step, so large tool outputs are
+expensive forever, not just once:
+
+- Never read a whole build log, `/tmp/opencode/fit.txt`, or any other
+  large file into the context. Use `tail`/`grep`/`sed -n` windows only.
+- Never render or read all pages of the deck as PNGs.
+  Read at most 1-2 page images per check round,
+  and only pages that were changed or flagged.
+- Every command that can print more than a few KB of output
+  (builds, `nix` commands, whole-deck `pdftotext`) must be redirected
+  to a file in `/tmp/opencode/` first (see `build` skill).
+- If a step fails with HTTP 413 (Payload Too Large), the session
+  history is already over the limit: do not retry in the same
+  session — report to the PM; a fresh subagent session with a
+  compact prompt continues the work.
+
+## Checks
 
 1. Check for Horizontal Text Overflow (Overfull lines):
     Run the following command to detect if text or code goes past the right margin.
@@ -175,18 +198,18 @@ perform these automated checks to ensure the presentation is flawless:
 2. Check for Code Line Wrapping (mandatory, mechanical):
     Minted with `breaklines` wraps long lines SILENTLY: no Overfull
     appears in the log, so check 1 cannot catch this.
+    Run the bundled script — it prints ONLY the violating lines:
     ```shell
-    mkdir -p /tmp/opencode && pdftotext -layout build/<NAME>.pdf /tmp/opencode/fit.txt
+    nix develop --command pdftotext -layout build/<NAME>.pdf /tmp/opencode/fit.txt
+    nix develop --command sh .opencode/skills/luatex-presentation/scripts/check-listings.sh <NAME>
     ```
-    Then verify that EVERY non-empty line of every file in
-    `presentations/<NAME>/src/` is contained in a SINGLE physical
-    line of `/tmp/opencode/fit.txt` (compare after removing all
-    whitespace from both the source line and each physical line).
-    If a source line is split across two physical lines, the listing
-    overflows the frame width: reduce the listing font size or split
-    the listing/frame.
-    Also inspect `/tmp/opencode/fit.txt` to ensure no code lines are
-    broken or clipped.
+    Each printed line `file:line: content` is a source line that is
+    wrapped or clipped in the PDF: reduce the listing font size or
+    split the listing/frame, rebuild, and re-run the script.
+    Do NOT read `/tmp/opencode/fit.txt` into the context.
+    If a reported line is a false positive, inspect a 10-line window
+    around the listing with `sed -n 'N,Mp' /tmp/opencode/fit.txt`
+    to see what happened.
 
 3. Check PDF Metadata & Page Count:
     Verify that the document compiled with the correct geometry and that the
@@ -214,13 +237,20 @@ perform these automated checks to ensure the presentation is flawless:
     ```
     If it returns lines, wrap them.
 
-6. Check bottom margin (visual):
+6. Check bottom margin (mechanical):
     Frame content must not touch the bottom edge of the slide
     (there must be a visible margin before the frame number).
+    The bundled script measures word coordinates via `pdftotext -bbox`
+    and prints ONLY the pages where content is under 6pt above the
+    frame-number line (or intrudes into its strip):
     ```shell
-    nix develop --command sh -c \
-      'pdftoppm -png -r 80 build/<NAME>.pdf /tmp/opencode/page'
+    nix develop --command sh .opencode/skills/luatex-presentation/scripts/check-bottom-margin.sh <NAME>
     ```
-    Inspect `/tmp/opencode/page-*.png`.
+    If it prints pages, render ONLY the flagged pages and inspect them:
+    ```shell
+    nix develop --command pdftoppm -png -r 80 -f <N> -l <N> build/<NAME>.pdf /tmp/opencode/bottom-N
+    ```
+    Read at most 1-2 of these images.
     If content touches the edge, reduce the font size or split the
-    frame.
+    frame, rebuild, and re-run the script.
+    Never render all pages of the deck.
