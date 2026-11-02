@@ -66,6 +66,30 @@ The skills contain details.
 
 - Keep LaTeX source lines under 100 characters.
 
+- Presentations set only `\title`.
+  No `\setbeamertemplate`, no `\setbeamerfont`, no local `\setlength`
+  hacks: all beamer customization lives in `presentationtemplate.sty`.
+  Do not override `\subtitle` from the template.
+  Documentclass: `\documentclass[compress, 8pt, aspectratio=169]{beamer}`;
+  load `mylisting`/`terminal` with `fontsize=\footnotesize`.
+
+- Footnotes: `\footnotemark` + `\footnotetext` without manual numbers
+  (numbering is automatic).
+  The mark attaches to a word in the text — never to a listing,
+  a frame title, or empty space.
+  Footnote text is the URL only, no title or commentary.
+
+- Tables must have visible borders (`|` column separators and `\hline`).
+
+- Frame content must not touch the bottom edge of the slide
+  (visible margin before the frame number).
+  Add space between an adjacent listing and terminal window.
+
+- Minted wraps long lines SILENTLY (no Overfull in the log).
+  Before reporting done: every `src/` line must fit in ONE physical
+  line of `pdftotext -layout` output, and the rendered pages
+  (`pdftoppm`) must be inspected for content touching the bottom edge.
+
 - Before reporting a document finished, run every check from the
   `Validating presentations` section of `luatex-presentation` skill.
   Do not rely on memory of which checks exist.

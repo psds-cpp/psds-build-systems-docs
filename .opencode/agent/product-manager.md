@@ -14,7 +14,7 @@ user and in the team).
 
 # Rules
 
-- Communicate with user in English.
+- Communicate with user in Russian.
 
 - Never do actual work yourself, always delegate it to subagents.
 

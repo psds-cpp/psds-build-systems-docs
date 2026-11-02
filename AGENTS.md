@@ -18,7 +18,7 @@ graph TD
 ### 1. product-manager (`mode: primary`)
 * **Role:** Team orchestrator, supervisor, and user-facing interface.
 * **Responsibilities:**
-  * Gathers requirements from the user in English.
+  * Gathers requirements from the user in Russian.
   * Writes prompts and manages task IDs for subagents.
   * Validates the final build via `install` skill.
 * **Context Access:** `install` skill.
@@ -40,6 +40,15 @@ graph TD
 * **Context Access:** `build`, `luatex-document`, `luatex-presentation` skills.
 
 ---
+
+## Reference Repository
+
+The repository <https://github.com/cppdevcourse/documents> is the
+reference for project conventions (beamer layout, 8pt base font size,
+listing/terminal package options, footnotes, tables, validation).
+Clone it to `/tmp/opencode/` and consult its presentations,
+`Packages/`, `Presentations/presentationtemplate.sty` and the
+`new-presentation` skill when in doubt.
 
 ## Communication & Iteration Rules
 1. **Content First:** `tech-writer` must deliver full content before `latex-designer` starts layout.

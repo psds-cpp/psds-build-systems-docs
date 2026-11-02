@@ -35,11 +35,14 @@ When in need to create new LuaTeX presentation or change existing one.
 
 - Presentations must be installed to `$(PREFIX)/presentations/` folder.
 
-- Use Beamer with 16:9 aspect ratio.
+- Use Beamer with 16:9 aspect ratio and 8pt base font size.
   Example:
   ```tex
-  \documentclass[compress, aspectratio=169]{beamer}
+  \documentclass[compress, 8pt, aspectratio=169]{beamer}
   ```
+  If content frequently does not fit the slides, change the base
+  font size via the `documentclass` option (e.g. `8pt`) rather than
+  shrinking individual frames.
 
 - Use `presentationtemplate` template.
   Example:
@@ -47,8 +50,22 @@ When in need to create new LuaTeX presentation or change existing one.
   \usepackage{presentationtemplate}
   ```
 
-- Use `\title` to set presentation title.
-  All else defined in template.
+- Load the listing and terminal packages with reduced font sizes
+  (reference convention):
+  ```tex
+  \usepackage[fontsize=\footnotesize, linenosfontsize=\tiny,
+    askip=3mm]{mylisting}
+  \usepackage[fontsize=\footnotesize, askip=3mm]{terminal}
+  ```
+
+- The presentation sets only its name via `\title`.
+  Do not override `\subtitle` from the template.
+  Do not use `\setbeamertemplate`, `\setbeamerfont` or local
+  `\setlength` hacks in the presentation — all beamer customization
+  (title page, frame title font, footnote style, spacing) lives in
+  `presentationtemplate.sty`.
+  The frame title font size must be identical in all presentations:
+  if a title does not fit, shorten the title, do not shrink the font.
 
 # Writing presentations
 
@@ -61,9 +78,14 @@ When in need to create new LuaTeX presentation or change existing one.
 
 - Use other presentations as references (if there are any) when in doubt.
   They may have manual fixes which user added manually.
+  The reference repository
+  <https://github.com/cppdevcourse/documents> (its presentations,
+  packages and `new-presentation` skill) is the primary reference
+  for conventions.
 
 - When in need to list several homogeneous ideas use `itemize` environment.
-  Do not use `itemize` if ideas/sentences are not strictly homogeneous.
+  Do not use `itemize` if ideas/sentences are not strictly homogeneous:
+  present such material as plain text (a sequence of sentences) instead.
   Good:
   ```tex
   Object property:
@@ -82,17 +104,43 @@ When in need to create new LuaTeX presentation or change existing one.
 
 - Use `fragile` for frames when using code listings and terminal windows.
 
+- When a code listing and a terminal window are adjacent on a frame,
+  add visible vertical space between them (e.g. `\vspace{0.5em}`);
+  they must not touch.
+
 - Overfulls are not allowed (check `Validating presentations` below)
 
 - Adjust text size in text, code listings and terminal windows so it fits
-  frame.
-  It should not be smaller than `\small`.
+  the frame.
+  Body text must not be smaller than `\small`.
+  Code listings and terminal windows use `\footnotesize` via package
+  options (see "Add new presentation" above).
   If it does not fit, split frame in two.
 
-- When adding footnotes, use separate `\footnotemark{}` and
+- Frame content must not touch the bottom edge of the slide:
+  there must be a visible margin between the last content line and
+  the frame number.
+  If content reaches the edge, reduce the font size or split the frame.
+
+- When adding footnotes, use separate `\footnotemark` and
   `\footnotetext{...}`.
+  Never write footnote numbers by hand: no optional argument,
+  numbering must be automatic.
+- A footnote mark must be attached to a word in the text:
+  not to a code listing, not to a frame title, and not floating
+  in empty space (e.g. on its own line at the end of the frame).
+  Putting a footnote on a code listing is forbidden: the number
+  ends up under the listing and looks bad.
+- Footnote text must contain no title or commentary —
+  the URL itself is enough: `\footnotetext{\url{https://...}}`.
+  Write each URL on one source line (keep it under 100 characters;
+  a line break inside `\url{...}` inserts a space into the URL).
 
 - Columns must be top-aligned.
+
+- Tables must have visible borders: column separators (`|`) and
+  horizontal rules (`\hline`) at the top and bottom of the table
+  and under the header row.
 
 - Slides without title are forbidden.
 
@@ -124,13 +172,21 @@ perform these automated checks to ensure the presentation is flawless:
     grep -n "Overfull \\hbox" build/<NAME>.log
     ```
 
-2. Check for Code Line Wrapping:
-    Convert the PDF to raw layout text and inspect if long lines of code were
-    abruptly wrapped into new lines inside listings:
+2. Check for Code Line Wrapping (mandatory, mechanical):
+    Minted with `breaklines` wraps long lines SILENTLY: no Overfull
+    appears in the log, so check 1 cannot catch this.
     ```shell
     mkdir -p /tmp/opencode && pdftotext -layout build/<NAME>.pdf /tmp/opencode/fit.txt
     ```
-   Inspect `/tmp/opencode/fit.txt` to ensure no code lines are broken or clipped.
+    Then verify that EVERY non-empty line of every file in
+    `presentations/<NAME>/src/` is contained in a SINGLE physical
+    line of `/tmp/opencode/fit.txt` (compare after removing all
+    whitespace from both the source line and each physical line).
+    If a source line is split across two physical lines, the listing
+    overflows the frame width: reduce the listing font size or split
+    the listing/frame.
+    Also inspect `/tmp/opencode/fit.txt` to ensure no code lines are
+    broken or clipped.
 
 3. Check PDF Metadata & Page Count:
     Verify that the document compiled with the correct geometry and that the
@@ -157,3 +213,14 @@ perform these automated checks to ensure the presentation is flawless:
     awk 'length($0) > 100 { print FILENAME ": " FNR }' presentations/<NAME>/<NAME>.tex
     ```
     If it returns lines, wrap them.
+
+6. Check bottom margin (visual):
+    Frame content must not touch the bottom edge of the slide
+    (there must be a visible margin before the frame number).
+    ```shell
+    nix develop --command sh -c \
+      'pdftoppm -png -r 80 build/<NAME>.pdf /tmp/opencode/page'
+    ```
+    Inspect `/tmp/opencode/page-*.png`.
+    If content touches the edge, reduce the font size or split the
+    frame.
