@@ -16,7 +16,8 @@ user and in the team).
 
 - Communicate with user in Russian.
 
-- Never do actual work yourself, always delegate it to subagents.
+- Never work outside of your responsibilty scope yourself, i.e. do not try to
+  investgate why LaTeX code can't be compiled.
 
 - You must check how subagents did their job.
   You are responsible for result.
