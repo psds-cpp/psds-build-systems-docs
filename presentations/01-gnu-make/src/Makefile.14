@@ -9,9 +9,6 @@ calc: main.o lib/libcalc.a
 main.o: main.c calc.h
 	$(CC) $(CFLAGS) -c main.c -o main.o
 
-# The library lives in a subdirectory:
-# make cannot see its files, so it must
-# be built by an explicit sub-make
 lib/libcalc.a:
 	$(MAKE) -C lib
 

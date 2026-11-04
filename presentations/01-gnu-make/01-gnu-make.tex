@@ -5,6 +5,7 @@
   {mylisting}
 \usepackage[fontsize=\small,askip=3mm]{terminal}
 \usepackage{textcomp}
+\usepackage[autostyle=true]{csquotes}
 
 \title{GNU Make}
 
@@ -54,7 +55,7 @@
 
   \end{itemize}
 
-  При сборке "вручную" \space трудно обеспечить выполнение всех этих требований
+  При сборке \enquote{вручную} трудно обеспечить выполнение всех этих требований
   от сборки к сборке.
 
 \end{frame}
@@ -101,11 +102,11 @@
 
   \begin{itemize}
 
-    \item \texttt{calc.h} — единый заголовок: любой файл,
+    \item \texttt{calc.h} --- единый заголовок: любой файл,
       включающий его, видит одни и те же объявления;
 
     \item \texttt{calc.c} и \texttt{main.c} включают
-      \texttt{calc.h} — значит, при изменении заголовка
+      \texttt{calc.h} --- значит, при изменении заголовка
       пересобирать нужно \textit{оба};
 
   \end{itemize}
@@ -158,11 +159,11 @@
   \begin{itemize}
 
     \item \textbf{цели}
-      — что строим (файлы: \texttt{calc}, \texttt{calc.o}, …);
+      --- что строим (файлы: \texttt{calc}, \texttt{calc.o}, \dots);
 
-    \item \textbf{зависимости} — что нужно для цели (файлы);
+    \item \textbf{зависимости} --- что нужно для цели (файлы);
 
-    \item \textbf{рецепт} — shell-команда, пересоздающая цель;
+    \item \textbf{рецепт} --- shell-команда, пересоздающая цель;
 
     \item рецепт начинается с \textbf{табуляции}\footnotemark{},
       \footnotetext{\url{https://www.gnu.org/software/make/manual/make.html\#Rule-Syntax-1}}
@@ -184,11 +185,11 @@
   \begin{itemize}
 
     \item \texttt{calc.h} в зависимостях \textbf{обоих}
-      \texttt{.o} — правило «заголовок изменился \rightarrow \space пересобрать
+      \texttt{.o} --- правило «заголовок изменился \rightarrow \space пересобрать
       всё, что его включает»;
 
     \item \texttt{make} без аргументов собирает первую цель
-      файла — \texttt{calc}\footnotemark{}\
+      файла --- \texttt{calc}\footnotemark{}\
       \footnotetext{\url{\makeurlbase\#Writing-Rules}}.
 
   \end{itemize}
@@ -258,7 +259,7 @@ cc main.o calc.o -o calc
 
         \texttt{\$\^}
           & \textit{все} зависимости
-          & в правиле линковки — оба \texttt{.o} \\
+          & в правиле линковки --- оба \texttt{.o} \\
 
         \hline
 
@@ -278,10 +279,10 @@ cc main.o calc.o -o calc
 
   \begin{itemize}
 
-    \item \texttt{\%} — "ствол" \space ("stem", имя без расширения)
+    \item \texttt{\%} --- \enquote{ствол} (\enquote{stem}, имя без расширения)
       имени\footnotemark{}\
       \footnotetext{\url{\makeurlbase\#Introduction-to-Pattern-Rules}}:
-      для цели \texttt{main.o} ствол — \texttt{main}, поэтому
+      для цели \texttt{main.o} ствол --- \texttt{main}, поэтому
       \texttt{\$<} превращается в \texttt{main.c};
 
     \item \texttt{calc.h} оставлен в зависимостях шаблона:
@@ -359,8 +360,7 @@ cc -Wall -O2 main.o calc.o -o calc
 
 \end{frame}
 
-\begin{frame}[fragile]{Инициализация переменных: \texttt{=},
-  \texttt{:=}, \texttt{?=}}
+\begin{frame}[fragile]{Инициализация переменных\footnotemark{}}
 
   \begin{columns}[T]
 
@@ -368,12 +368,13 @@ cc -Wall -O2 main.o calc.o -o calc
 
       \begin{itemize}
 
-        \item \texttt{=}\footnotemark{} — «рекурсивное» (отложенное)
+        \item \texttt{=} --- \enquote{рекурсивное} (отложенное)
           присваивание: значение раскрывается в момент использования;
-          \texttt{:=} — «немедленное»: значение раскрывается в момент
+
+        \item \texttt{:=} --- \enquote{немедленное}: значение раскрывается в момент
           определения;
 
-        \item \texttt{?=} — присваивает значение, только если переменная
+        \item \texttt{?=} --- присваивает значение, только если переменная
           ещё не определена (не затирает значение из командной строки
           и из окружения).
 
@@ -440,7 +441,7 @@ D = from command line
 !\shellcommand{make show}!
 CC     = cc
 CFLAGS = -Wall -O2
-!\shellcommand{make show CC=gcc CFLAGS="-Wall -O0"}!
+!\shellcommand{make show CC=gcc CFLAGS='-Wall -O0'}!
 CC     = gcc
 CFLAGS = -Wall -O0
       \end{terminalwindow}
@@ -467,14 +468,14 @@ CFLAGS = -Wall -O0
 
     \item \texttt{all}\footnotemark{}
       \footnotetext{\url{\makeurlbase\#Standard-Targets-for-Users}}
-      — первая цель файла, по-умолчанию собирается всё.
+      --- первая цель файла, по-умолчанию собирается всё.
 
     \item \texttt{clean}\footnotemark{}
       \footnotetext{\url{\makeurlbase\#Rules-for-Cleaning-the-Directory}}
-      — удаляет артефакты сборки, возвращает
+      --- удаляет артефакты сборки, возвращает
       каталог в исходное состояние;
 
-    \item \texttt{help} — печатает список целей; \texttt{@} в
+    \item \texttt{help} --- печатает список целей; \texttt{@} в
       начале команды подавляет её вывод\footnotemark{}
       \footnotetext{\url{https://www.gnu.org/software/make/manual/make.html\#Recipe-Echoing}}.
 
@@ -507,7 +508,7 @@ make: 'clean' is up to date.
 
 \begin{frame}[fragile]{\texttt{.PHONY}}
 
-  \textit{Исправление}: все "виртуальные" \space цели нужно занести в директиву \texttt{.PHONY}.
+  \textit{Исправление}: все \enquote{виртуальные} цели нужно занести в директиву \texttt{.PHONY}.
 
   \bigbreak
 
@@ -520,7 +521,7 @@ make: 'clean' is up to date.
 \begin{frame}{Статическая библиотека}
 
   Пусть теперь код \texttt{calc.c} компилируется в
-  \textbf{библиотеку}, a \texttt{main.c} — в ee \textbf{клиент}.
+  \textbf{библиотеку}, a \texttt{main.c} --- в ee \textbf{клиент}.
 
   \bigbreak
 
@@ -583,13 +584,13 @@ cc main.o libcalc.so -o calc
     {presentations/01-gnu-make/src/}
     {Makefile.08}
 
-  \textit{To be continued...}
+  \textit{To be continued \dots}
 
 \end{frame}
 
 \begin{frame}[fragile]{Встроенные функции}
 
-  \textit{...continued}
+  \textit{\dots continued}
 
   \bigbreak
 
@@ -623,7 +624,7 @@ Sources : calc.c main.c
 
 \begin{frame}[fragile]{Пользовательские функции}
 
-  \textit{...continued}
+  \textit{\dots continued}
 
   \bigbreak
 
@@ -639,100 +640,67 @@ Sources : calc.c main.c
 
   \begin{itemize}
 
-    \item \texttt{define … endef} — многострочная переменная
+    \item \texttt{define \dots \space endef} --- многострочная переменная
       (тело функции) с плейсхолдерами \texttt{\$(1)},
       \texttt{\$(2)};
 
     \item \texttt{\$(call BUILD\_STATIC\_LIB,libcalc,calc.o)}
-      — подстановка аргументов в тело;
+      --- подстановка аргументов в тело;
 
-    \item \texttt{\$(eval …)} — результат разбирается как код
-      Makefile: правило \texttt{libcalc.a: calc.o}
-      \textbf{генерируется} при разборе файла;
+    \item \texttt{\$(eval \dots)} --- результат интерпретируется как код
+      Makefile: генерируется правило \texttt{libcalc.a: calc.o};
 
-    \item \texttt{\$\$@} / \texttt{\$\$\^} в теле —
-      экранированный доллар: в рецепт попадут живые
-      \texttt{\$@} и \texttt{\$\^};
+    \item в \texttt{\$\$@} / \texttt{\$\$\^{}} доллар экранирован;
 
     \item одной функцией можно сгенерировать правила для
-      сколь угодно многих библиотек (вызвать N раз);
+      разных библиотек.
 
   \end{itemize}
 
 \end{frame}
 
-\begin{frame}[fragile]{Один shell на весь рецепт: \texttt{.ONESHELL}}
+\begin{frame}[fragile]{\texttt{.ONESHELL}}
 
-  \begin{itemize}
-
-    \item по умолчанию каждая строка рецепта — отдельный
-      shell: переменная \texttt{x} «умирает» после первой строки;
-
-    \item \texttt{.ONESHELL}\footnotemark{} — один shell на весь
-      рецепт: shell-переменные живут между строками рецепта.
-
-  \end{itemize}
+  По умолчанию каждая строка рецепта --- отдельный
+  shell: переменная \texttt{x} \enquote{умирает} после первой строки.
+  Чтобы заставить рецепт выполняться в одном shell, используется
+  \texttt{.ONESHELL}\footnotemark{}.
 
   \footnotetext{\url{\makeurlbase\#One-Shell}}
 
-  \bigbreak
-
-  \myinputlisting[minted language=make]
-    {presentations/01-gnu-make/src/}
-    {Makefile.12b}
-
-  \begin{terminalwindow}
-!\shellcommand{make -f Makefile.12 demo}!
-x=hello
-echo "x = $x"
-x = 
-!\shellcommand{make -f Makefile.12b demo}!
-x=hello
-echo "x = $x"
-x = hello
-  \end{terminalwindow}
-
-\end{frame}
-
-\begin{frame}[fragile]{Параллельная сборка: \texttt{-j} (1/2)}
-
   \begin{columns}[T]
 
-    \begin{column}{0.41\textwidth}
+    \begin{column}{0.48\textwidth}
 
-      \begin{itemize}
-
-        \item \texttt{-j\ N}\footnotemark{} — не более N рецептов
-          выполняется одновременно (без аргумента — без ограничений);
-
-        \item переменной \texttt{JLEVEL} в GNU make нет
-          (это bmake): о количестве задач make «помнит»
-          в \texttt{MAKEFLAGS}/\texttt{MFLAGS}.
-
-      \end{itemize}
-
-      \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
+      \myinputlisting[minted language=make]
+        {presentations/01-gnu-make/src/}
+        {Makefile.12}
 
       \bigbreak
 
       \begin{terminalwindow}
-!\shellcommand{make flags}!
-MAKEFLAGS = 
-!\shellcommand{make -j4 flags}!
-MAKEFLAGS = -j4
+!\shellcommand{make demo}!
+x=hello
+echo "x = $x"
+x =
       \end{terminalwindow}
 
     \end{column}
 
-    \begin{column}{0.56\textwidth}
+    \begin{column}{0.48\textwidth}
 
-      \myinputlisting[minted language=make,
-        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
-        linenos,numbersep=2pt,lastline=15}]
+      \myinputlisting[minted language=make]
         {presentations/01-gnu-make/src/}
-        {Makefile.13}
+        {Makefile.12b}
 
-      \textit{To be continued...}
+      \bigbreak
+
+      \begin{terminalwindow}
+!\shellcommand{make demo}!
+x=hello
+echo "x = $x"
+x = hello
+      \end{terminalwindow}
 
     \end{column}
 
@@ -740,28 +708,20 @@ MAKEFLAGS = -j4
 
 \end{frame}
 
-\begin{frame}[fragile]{Параллельная сборка: \texttt{-j} (2/2)}
-
-  \begin{itemize}
-
-    \item независимые цели \texttt{p1} и \texttt{p2}
-      с \texttt{-j2}\footnotemark{} стартуют одновременно: обе
-      «стартуют» до того, как закончилась любая из них
-      (~1 с вместо ~2 с).
-
-  \end{itemize}
-
-  \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
-
-  \textit{...continued}
+\begin{frame}[fragile]{Параллельная сборка}
 
   \begin{columns}[T]
 
     \begin{column}{0.48\textwidth}
 
-      \myinputlisting[minted language=make,
-        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
-        linenos,numbersep=2pt,firstline=16}]
+      Флаг \texttt{-j\ N}\footnotemark{} позволяет выполнять независиме друг от
+      друга задачи параллельно.
+
+      \bigbreak
+
+      \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
+
+      \myinputlisting[minted language=make]
         {presentations/01-gnu-make/src/}
         {Makefile.13}
 
@@ -770,16 +730,18 @@ MAKEFLAGS = -j4
     \begin{column}{0.48\textwidth}
 
       \begin{terminalwindow}
-!\shellcommand{make p1 p2}!
+!\shellcommand{time -f '\%e sec' \ \\ make -f Makefile.13 p1 p2}!
 p1: start
 p1: done
 p2: start
 p2: done
-!\shellcommand{make -j2 p1 p2}!
+2.01 sec
+!\shellcommand{time -f '\%e sec' \ \\ make -f Makefile.13 \myhighlight{yellow}{-j2} p1 p2}!
 p1: start
 p2: start
 p1: done
 p2: done
+1.01 sec
       \end{terminalwindow}
 
     \end{column}
@@ -788,16 +750,14 @@ p2: done
 
 \end{frame}
 
-\begin{frame}[fragile]{Часто используемые флаги make: \texttt{-C},
-  \texttt{-f}}
+\begin{frame}[fragile]{Другие флаги make}
 
   \begin{itemize}
 
-    \item \texttt{-C\ dir}\footnotemark{} — перейти в каталог
-      \texttt{dir} до чтения makefile (make при этом печатает
-      \texttt{Entering/Leaving directory});
+    \item \texttt{-C\ dir}\footnotemark{} --- перейти в каталог
+      \texttt{dir} до чтения Makefile;
 
-    \item \texttt{-f\ name} — использовать в качестве makefile
+    \item \texttt{-f\ name} --- использовать в качестве Makefile
       файл \texttt{name}; по умолчанию make ищет
       \texttt{GNUmakefile}, \texttt{makefile}, \texttt{Makefile}
       по порядку.
@@ -809,20 +769,17 @@ p2: done
   \bigbreak
 
   \begin{terminalwindow}
-!\shellcommand{make -C src -f Makefile.08 info}!
-make: Entering directory '…/src'
-Compiler: clang version 21.1.8
-Sources : calc.c main.c
-make: Leaving directory '…/src'
 !\shellcommand{make -C src -f Makefile.08 clean}!
-make: Entering directory '…/src'
+make: Entering directory '!\dots!/src'
 rm -f calc calc.o main.o
-make: Leaving directory '…/src'
+make: Leaving directory '!\dots!/src'
   \end{terminalwindow}
 
 \end{frame}
 
-\begin{frame}[fragile]{Сборка подкаталога: верхний Makefile}
+\begin{frame}[fragile]{Сборка подкаталога\footnotemark{}}
+
+  \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
 
   \begin{columns}[T]
 
@@ -832,16 +789,13 @@ make: Leaving directory '…/src'
 
         \item make не «видит» файлы внутри подкаталогов: цель
           \texttt{lib/libcalc.a}\footnotemark{} объявлена
-          \textbf{без зависимостей} — рецепт срабатывает только при
-          отсутствии файла; что именно пересобирать внутри
-          \texttt{lib/}, решает под-make (проверено: после
-          \texttt{touch\ lib/calc.c} верхний make печатает
-          \texttt{Nothing to be done for 'all'});
+          \textbf{без зависимостей} --- рецепт срабатывает только при
+          отсутствии файла;
 
         \item в рецепте всегда \texttt{\$(MAKE)}, а не буквально
           \texttt{make}: под-make запускается тем же make, которым
           запущен верхний, и наследует его командные опции
-          (например, \texttt{-j}) через \texttt{MAKEFLAGS}.
+          (например, \texttt{-j}).
 
       \end{itemize}
 
@@ -851,9 +805,7 @@ make: Leaving directory '…/src'
 
     \begin{column}{0.48\textwidth}
 
-      \myinputlisting[minted language=make,
-        minted options={fontsize=\footnotesize,breaklines,breakanywhere,
-        linenos,numbersep=2pt}]
+      \myinputlisting[minted language=make]
         {presentations/01-gnu-make/src/}
         {Makefile.14}
 
@@ -863,22 +815,7 @@ make: Leaving directory '…/src'
 
 \end{frame}
 
-% Файлы lib/calc.c и lib/calc.h намеренно не листятся ни в одном
-% кадре: они нужны только для реальной сборки демо рекурсивного
-% make (Makefile.14 + lib/Makefile). Поэтому check-listings.sh
-% помечает строки lib/calc.c — задокументированное ложное срабатывание.
-\begin{frame}[fragile]{Сборка подкаталога: \texttt{lib/Makefile}}
-
-  \begin{itemize}
-
-    \item под-make\footnotemark{} выполняет первую цель
-      \texttt{lib/Makefile} (\texttt{all}); в верхнем makefile
-      \texttt{Entering/Leaving directory 'lib'} — видимые маркеры
-      рекурсии.
-
-  \end{itemize}
-
-  \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
+\begin{frame}[fragile]{Сборка подкаталога}
 
   \begin{columns}[T]
 
@@ -896,17 +833,11 @@ make: Leaving directory '…/src'
 !\shellcommand{make}!
 cc -Wall -O2 -c main.c -o main.o
 make -C lib
-make[1]: Entering directory '…/lib'
+make[1]: Entering directory '!\dots!/lib'
 cc -Wall -O2 -c calc.c -o calc.o
 ar rcs libcalc.a calc.o
-make[1]: Leaving directory '…/lib'
+make[1]: Leaving directory '!\dots!/lib'
 cc -Wall -O2 main.o lib/libcalc.a -o calc
-!\shellcommand{make clean}!
-make -C lib clean
-make[1]: Entering directory '…/lib'
-rm -f calc.o libcalc.a
-make[1]: Leaving directory '…/lib'
-rm -f calc main.o
       \end{terminalwindow}
 
     \end{column}

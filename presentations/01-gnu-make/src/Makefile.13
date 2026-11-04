@@ -1,21 +1,3 @@
-CC     = cc
-CFLAGS = -Wall -O2
-
-all: calc
-
-calc: main.o calc.o
-	$(CC) $(CFLAGS) $^ -o $@
-
-%.o: %.c calc.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-# make remembers its own options in MAKEFLAGS/MFLAGS:
-# $(filter -j%, ...) picks the -j option out of them
-flags:
-	@echo "MAKEFLAGS = $(filter -j%, $(MAKEFLAGS))"
-
-# Two independent targets with 1s of "work":
-# sequentially they take ~2s, with -j2 ~1s
 p1:
 	@echo "p1: start"
 	@sleep 1
@@ -26,7 +8,4 @@ p2:
 	@sleep 1
 	@echo "p2: done"
 
-clean:
-	rm -f calc *.o
-
-.PHONY: all clean flags p1 p2
+.PHONY: flags p1 p2
