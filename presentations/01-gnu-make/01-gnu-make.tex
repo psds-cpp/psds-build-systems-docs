@@ -130,6 +130,8 @@
     \item полная пересборка при каждом запуске: компилируются
       оба \texttt{*.c}-файла, даже если ничего не менялось;
 
+    \item поддерживать параллельную компиляцию трудно;
+
     \item не масштабируется: 50 исходников \rightarrow \space 50 строк скрипта
       + 1 строка линковки;
 
@@ -714,12 +716,38 @@ x = hello
 
     \begin{column}{0.48\textwidth}
 
-      Флаг \texttt{-j\ N}\footnotemark{} позволяет выполнять независиме друг от
+      \myinputlisting[minted language=make]
+        {presentations/01-gnu-make/src/}
+        {Makefile.07}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{make -f Makefile.07 -Bnd \textbackslash \\ | make2graph | dot -Tpng -o out.png}!
+      \end{terminalwindow}
+
+      \begin{center}
+        \includegraphics[scale=0.3,valign=t]{presentations/01-gnu-make/images/graph.png}
+      \end{center}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Параллельная сборка}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      Флаг \texttt{-j\ N}\footnotemark{} позволяет выполнять независимые друг от
       друга задачи параллельно.
 
       \bigbreak
-
-      \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
 
       \myinputlisting[minted language=make]
         {presentations/01-gnu-make/src/}
@@ -730,13 +758,13 @@ x = hello
     \begin{column}{0.48\textwidth}
 
       \begin{terminalwindow}
-!\shellcommand{time -f '\%e sec' \ \\ make -f Makefile.13 p1 p2}!
+!\shellcommand{time -f '\%e sec' \textbackslash \\ make -f Makefile.13 p1 p2}!
 p1: start
 p1: done
 p2: start
 p2: done
 2.01 sec
-!\shellcommand{time -f '\%e sec' \ \\ make -f Makefile.13 \myhighlight{yellow}{-j2} p1 p2}!
+!\shellcommand{time -f '\%e sec' \textbackslash \\ make -f Makefile.13 \myhighlight{yellow}{-j2} p1 p2}!
 p1: start
 p2: start
 p1: done
@@ -747,6 +775,8 @@ p2: done
     \end{column}
 
   \end{columns}
+
+  \footnotetext{\url{\makeurlbase\#Parallel-Execution}}
 
 \end{frame}
 
@@ -777,9 +807,7 @@ make: Leaving directory '!\dots!/src'
 
 \end{frame}
 
-\begin{frame}[fragile]{Сборка подкаталога\footnotemark{}}
-
-  \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
+\begin{frame}[fragile]{Сборка подкаталога}
 
   \begin{columns}[T]
 
@@ -799,8 +827,6 @@ make: Leaving directory '!\dots!/src'
 
       \end{itemize}
 
-      \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
-
     \end{column}
 
     \begin{column}{0.48\textwidth}
@@ -812,6 +838,8 @@ make: Leaving directory '!\dots!/src'
     \end{column}
 
   \end{columns}
+
+  \footnotetext{\url{\makeurlbase\#Recursive-Use-of-make}}
 
 \end{frame}
 

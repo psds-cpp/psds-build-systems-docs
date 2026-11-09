@@ -40,8 +40,34 @@ Keep doing it until **latex-designer** stops asking.
 
 - Texts must be written in Russian.
 
+- Write drafts with plain keyboard punctuation: `---` for dash,
+  straight quotes, `...` for ellipsis.
+  Do not use `—`, `«»`, `…` or curly quotes: the downstream
+  typesetting depends on it.
+
 - Try to validate source code for examples as much as it's possible.
   For instance, when creating C code for listing try to compile
   source file first.
+
+- Examples must be minimal: files in `src/` contain exactly what the
+  slides show and nothing else.
+  Do not copy extra educational targets, comments or boilerplate
+  from real-world Makefiles into example files.
+  Number example Makefiles in slide order: `Makefile.01`,
+  `Makefile.02`, ...
+
+- A "broken" example that is fixed later keeps the normal file name
+  for the broken version (`Makefile.05`) and the fixed version goes
+  to a separate file with the `.fixed` suffix (`Makefile.05.fixed`).
+
+- The project tree shown on the slides must match the real `src/`
+  contents (file names and subdirectories).
+
+- Terminal transcripts must be the real output of the commands
+  (run the example, copy the output); do not invent or paraphrase
+  output.
+  Long paths in the output may be abbreviated with `...`.
+  Arguments with spaces or special characters are wrapped in single
+  quotes.
 
 - When in doubt prefer using `websearch` and `webfetch`.

@@ -56,6 +56,8 @@
         pkgs.gcc
         pkgs.cmake
         pkgs.poppler-utils
+        pkgs.graphviz
+        pkgs.makefile2graph
       ];
     };
 
