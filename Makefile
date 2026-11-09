@@ -75,7 +75,7 @@ endef
 	packages/terminal.sty \
 	packages/mylisting.sty \
 	$(wildcard presentations/02-cmake/src/*) \
-	$(wildcard presentations/02-cmake/src/calc/*) \
+	$(wildcard presentations/02-cmake/src/calc/*/*) \
 	$(wildcard presentations/02-cmake/src/calc-subdir/*) \
 	$(wildcard presentations/02-cmake/src/calc-subdir/app/*) \
 	$(wildcard presentations/02-cmake/src/calc-subdir/lib/*) \
