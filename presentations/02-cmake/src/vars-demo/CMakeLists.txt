@@ -1,11 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(vars-demo NONE)
 
-# Обычная переменная — видна только в CMakeLists.txt
-set(WHO "directory variable")
+set(WHO "directory variable") # Обычная переменная, "видна" только в CMakeLists.txt
 message(STATUS "WHO   = ${WHO}")
 
-# Кэш-переменная — живёт в CMakeCache.txt,
-# переопределяется из командной строки флагом -D
-set(WHERE "default" CACHE STRING "Where variable lives")
+set(WHERE "default" CACHE STRING "Where variable lives") # Кэш-переменная в CMakeCache.txt
 message(STATUS "WHERE = ${WHERE}")
