@@ -100,7 +100,9 @@ manual fixes to presentation 01) codified in the
   the shown project tree matches the real `src/` contents.
 
 Deviations are caught mechanically by
-`.opencode/skills/luatex-presentation/scripts/check-style.sh`.
+`.opencode/skills/luatex-presentation/scripts/check-style.sh`
+(house style) and by `check-listings.sh` / `check-wraps.sh`
+(line wrapping in `src/` listings and in-place terminals).
 
 ## Communication & Iteration Rules
 1. **Content First:** `tech-writer` must deliver full content before `latex-designer` starts layout.
