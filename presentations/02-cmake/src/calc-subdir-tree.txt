@@ -1,0 +1,9 @@
+calc-subdir/
+├── CMakeLists.txt   # project() + add_subdirectory(lib) + add_subdirectory(app)
+├── lib/
+│   ├── CMakeLists.txt   # add_library(calc STATIC calc.c) + PUBLIC-включённые
+│   ├── calc.h
+│   └── calc.c
+└── app/
+    ├── CMakeLists.txt   # add_executable(calc_app main.c) + target_link_libraries
+    └── main.c

@@ -1,0 +1,1246 @@
+\documentclass[compress, 8pt, aspectratio=169]{beamer}
+
+\usepackage{presentationtemplate}
+\usepackage[fontsize=\small,linenosfontsize=\tiny,askip=3mm]
+  {mylisting}
+\usepackage[fontsize=\small,askip=3mm]{terminal}
+\usepackage{textcomp}
+\usepackage[autostyle=true]{csquotes}
+
+\usetikzlibrary{calc}
+
+\title{CMake}
+
+\newcommand{\cmakehelp}%
+  {https://cmake.org/cmake/help/latest}
+
+\newcommand{\stdfl}{-std=gnu99 -Wall -Wextra}
+
+\newcommand{\dmtc}{toolchain/demo-toolchain.cmake}
+
+\newcommand{\armtc}{toolchain/aarch64-toolchain.cmake}
+
+\makeatletter
+\newdimen\cm@FVleftmargin
+\let\cm@FVSetupFont\FV@SetupFont
+\def\FV@SetupFont{%
+  \cm@FVleftmargin=\leftmargin
+  \cm@FVSetupFont
+  \let\leftmargin\cm@FVleftmargin}
+\makeatother
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Проблемы GNU Make}
+
+  \begin{itemize}
+
+    \item Большинство типичных действий (поиск библиотек, добавление
+      флагов компиляции к уже существующим, проверка работоспособности
+      компилятора) требует написания кода.
+
+    \item Трудно изменять директорию сборки.
+
+    \item Трудно поддерживать несколько компиляторов и платформ сборки.
+
+    \item Не очень хорошо поддерживается модульность: функциональности
+      подкаталогов иногда недостаточно.
+
+    \item Управление зависимостями реализовать трудно.
+
+  \end{itemize}
+
+  \bigbreak
+
+  GNU Make не очень хорошо масштабируется на большие и сложные проекты.
+
+\end{frame}
+
+\begin{frame}{CMake как мета-система сборки}
+
+  \begin{itemize}
+
+    \item CMake описывает проект в \texttt{CMakeLists.txt} на собственном языке.
+
+    \item CMake описывает сборку проекта в виде набора \textit{целей сборки}.
+      Целями являются артефакты: исполняемые файлы, библиотеки и т.д.
+
+    \item CMake \textit{генерирует} файлы сборки для выбранного сборочного
+      бэкенда (генератора): \texttt{Makefile}, \texttt{build.ninja}, проекты
+      Visual Studio/Xcode\footnotemark{}.
+
+      \vspace{0.6em}
+
+      \begin{center}
+
+        \begin{tikzpicture}[
+          box/.style={draw, thick, align=center, inner sep=4pt,
+            font=\footnotesize}
+        ]
+
+          \node[box] (src) {\texttt{CMakeLists.txt}};
+
+          \node[box, right=2.4cm of src] (gen)
+            {\texttt{Makefile} / \texttt{build.ninja} / \texttt{*.vcxproj}};
+
+          \draw[->, thick] (src.east) -- node[above, font=\footnotesize]
+            {генерация} (gen.west);
+
+        \end{tikzpicture}
+
+      \end{center}
+
+      \vspace{0.6em}
+
+    \item CMake более \textit{декларативен}, чем типичная система сборки
+      для C/C++.
+
+  \end{itemize}
+
+  \footnotetext{\url{\cmakehelp/manual/cmake.1.html}}
+
+\end{frame}
+
+\begin{frame}{CMake и GNU Make: сравнение}
+
+  \begin{center}
+
+    \renewcommand{\arraystretch}{1.4}
+
+    \begin{tabular}{|p{2.6cm}|p{5.0cm}|p{5.0cm}|}
+
+      \hline
+
+      \textbf{Критерий} & \textbf{GNU Make} & \textbf{CMake} \\
+
+      \hline
+
+      Уровень описания
+        & рецепт: \textbf{как} (команды, флаги)
+        & цель: \textbf{что} (библиотеки, исполняемый файлы) \\
+
+      \hline
+
+      Установка тулчейна
+        & вручную \texttt{make CC=\dots}
+        & автоматически или через toolchain-файл \\
+
+      \hline
+
+      Кто пишет команды компиляции
+        & разработчик
+        & сгенерированы \\
+
+      \hline
+
+    \end{tabular}
+
+  \end{center}
+
+\end{frame}
+
+\begin{frame}{Этапы сборки CMake-проекта}
+
+  \begin{enumerate}
+
+    \item \textbf{configure} --- CMake находит компилятор, применяет toolchain-файл
+      (если задан), обрабатывает опции сборки, создает кэш и
+      генерирует файлы сборки.
+
+    \item \textbf{build} --- CMake делегирует сборочному бэкенду выполнение
+      непосредственно компиляции.
+
+    \item \textbf{install} --- CMake делегирует сборочному бэкенду установку.
+
+  \end{enumerate}
+
+\end{frame}
+
+\begin{frame}{Этапы сборки CMake-проекта}
+
+  \begin{center}
+
+    \begin{tikzpicture}[
+      box/.style={draw, thick, align=center, inner sep=4pt,
+        font=\footnotesize}
+    ]
+
+      \node[box] (src) {исходники + \texttt{CMakeLists.txt}};
+
+      \node[box, below=1.0cm of src] (bld)
+        {\texttt{build/}: \texttt{CMakeCache.txt} +
+        \texttt{Makefile}/\texttt{build.ninja}};
+
+      \node[box, below=1.0cm of bld] (art)
+        {артефакты: \texttt{libcalc.a}, \texttt{calc\_app}};
+
+      \node[box, below=1.0cm of art] (pre)
+        {установка в: \texttt{bin/}, \texttt{lib/}, \texttt{include/}};
+
+      \draw[->, thick] (src.south) -- node[right, align=left,
+        font=\footnotesize] {1. \textbf{configure}: \texttt{cmake -S . -B build/}}
+        (bld.north);
+
+      \draw[->, thick] (bld.south) -- node[right, align=left,
+        font=\footnotesize] {2. \textbf{build}: \texttt{cmake --build build/}}
+        (art.north);
+
+      \draw[->, thick] (art.south) -- node[right, align=left,
+        font=\footnotesize] {3. \textbf{install}: \texttt{cmake --install build/}}
+        (pre.north);
+
+    \end{tikzpicture}
+
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]{Синтаксис \texttt{CMakeLists.txt}}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/}
+    {syntax-demo/CMakeLists.txt}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S syntax-demo/ -B \$(mktemp -d)}!
+-- The C compiler identification is GNU 15.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: !\dots!/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- flag: -O2
+-- Configuring done (0.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/!\dots!
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Простейший \texttt{CMakeLists.txt}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.40\textwidth}
+
+      \myinputlisting[minted language=cmake]
+        {presentations/02-cmake/src/}
+        {calc/01/CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.56\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{cmake -S calc/01/ -B /tmp/calc-01}!
+-- The C compiler identification is GNU 15.3.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: !\dots!/bin/gcc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (0.9s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/calc-01
+!\shellcommand{cmake --build /tmp/calc-01/}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+      \end{terminalwindow}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Простейший \texttt{CMakeLists.txt}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=c]
+        {presentations/02-cmake/src/}
+        {calc/01/calc.h}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=c]
+        {presentations/02-cmake/src/}
+        {calc/01/calc.c}
+
+      \vspace{0.5em}
+
+      \myinputlisting[minted language=c]
+        {presentations/02-cmake/src/}
+        {calc/01/main.c}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Цели сборки}
+
+  \begin{itemize}
+
+    \item \textbf{Цель (target)} --- именованный узел графа
+      зависимостей: библиотека или исполняемый файл, с набором свойств
+      (включённые каталоги, флаги, подключаемые библиотеки, имя
+      выходного файла).
+
+    \item Все настройки привязываются к \textbf{цели} через
+      \texttt{target\_*}-команды\footnotemark{}.
+
+    \item Имя цели $\ne$ имя файла: \texttt{calc} $\rightarrow$
+      \texttt{libcalc.a}; \texttt{calc\_app} $\rightarrow$
+      \texttt{calc\_app} (имя файла выводится из имени цели и типа).
+
+  \end{itemize}
+
+  \vspace{0.6em}
+
+  \begin{center}
+
+    \begin{tikzpicture}[
+      box/.style={draw, thick, align=center, inner sep=4pt,
+        font=\footnotesize}
+    ]
+
+      \node[box] (app) {\texttt{calc\_app}};
+
+      \node[box, right=3.0cm of app] (lib) {\texttt{calc}};
+
+      \draw[->, thick] (app.east) -- node[above, font=\footnotesize]
+        {\texttt{линкуется с}} (lib.west);
+
+    \end{tikzpicture}
+
+  \end{center}
+
+  \footnotetext{\url{\cmakehelp/manual/cmake-buildsystem.7.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{PUBLIC} / \texttt{PRIVATE} /
+  \texttt{INTERFACE}}
+
+  \texttt{scope} в \texttt{<command>(<target> <scope> \dots)} определяет, как
+  используются ли настройки цели \texttt{target} (include directories, libraries
+  и т.д.) ее потребителями.
+
+  \vspace{0.5em}
+
+  \begin{center}
+
+    \renewcommand{\arraystretch}{1.4}
+
+    \begin{tabular}{|p{3.2cm}|p{4.7cm}|p{4.7cm}|}
+
+      \hline
+
+      \textbf{Scope} & \textbf{Цель}
+        & \textbf{Потребитель} \\
+
+      \hline
+
+      \texttt{PRIVATE} & да & нет \\
+
+      \hline
+
+      \texttt{PUBLIC} & да & да \\
+
+      \hline
+
+      \texttt{INTERFACE} & нет & да \\
+
+      \hline
+
+    \end{tabular}
+
+  \end{center}
+
+  \bigbreak
+
+  \begin{myinplacelisting}[minted language=cmake]
+add_library(A a.c)
+
+target(B b.c)
+target_include_libraries(A PUBLIC B)
+
+target_include_directories(A PUBLIC ./headers) # both A and B get -I ./headers
+target_compile_options(A INTERFACE -dummy) # only B gets -dummy flag
+target_link_libraries(A PRIVATE foo) # only A gets -Lfoo
+  \end{myinplacelisting}
+
+\end{frame}
+
+\begin{frame}[fragile]{Динамическая библиотека: \texttt{SHARED}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.52\textwidth}
+
+      \myinputlisting[minted language=cmake]
+        {presentations/02-cmake/src/}
+        {calc/05/CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.46\textwidth}
+
+      \begin{itemize}
+
+        \item Меняем одно слово:
+          \texttt{add\_library(calc SHARED calc.c)}\footnotemark{} ---
+          остальное то же (листинг
+          \texttt{calc/05/CMakeLists.txt}).
+
+        \item \texttt{-fPIC} и \texttt{-shared} CMake добавляет
+          \textbf{сам} --- в лекции 1 мы писали их руками в Makefile.
+
+        \item Артефакт --- \texttt{libcalc.so}; исполняемый файл
+          хранит лишь имя --- загрузка в момент запуска.
+
+      \end{itemize}
+
+    \end{column}
+
+  \end{columns}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{ldd build-so/calc\_app | grep libcalc}!
+        libcalc.so => /tmp/opencode/cmake-calc/build-so/libcalc.so (!\dots!)
+!\shellcommand{readelf -d build-so/calc\_app | grep RUNPATH}!
+  0x000000000000001d (RUNPATH)   Library runpath: [/tmp/!\dots!/build-so:!\dots!]
+  \end{terminalwindow}
+
+  \footnotetext{\url{\cmakehelp/command/add_library.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{Динамическая библиотека: \texttt{SHARED}}
+
+  Из build-дерева \texttt{./build/calc\_app} работает сразу: CMake
+  прописывает RUNPATH на каталог сборки (\texttt{readelf}); после
+  установки --- системные каталоги или rpath (как в лекции 1).
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-so \&\& cmake --build build-so}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C shared library libcalc.so
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+!\shellcommand{ldd build-so/calc\_app | grep libcalc}!
+        libcalc.so => /tmp/opencode/cmake-calc/build-so/libcalc.so (!\dots!)
+!\shellcommand{readelf -d build-so/calc\_app | grep RUNPATH}!
+  0x000000000000001d (RUNPATH)   Library runpath: [/tmp/!\dots!/build-so:!\dots!]
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Флаги и стандарт языка}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/}
+    {calc/02/CMakeLists.txt}
+
+  \bigbreak
+
+  Что видно в реальной командной строке (проверено
+  \texttt{cmake --build --verbose}):
+
+  \vspace{0.5em}
+
+  \begin{terminalwindow}
+cc -I!\dots!/calc -O3 -DNDEBUG !\myhighlight{yellow}{\stdfl}! -MD -o CMakeFiles/!\dots! -c calc.c
+cc -O3 -DNDEBUG CMakeFiles/calc_app.dir/main.c.o -o calc_app libcalc.a
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{option()} и \texttt{if()}}
+
+  Один \texttt{CMakeLists.txt} --- две сборки: \texttt{option()} задаёт
+  кэш-переменную с дефолтом, \texttt{if()} выбирает
+  \texttt{SHARED}/\texttt{STATIC}.
+
+  \vspace{0.5em}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/}
+    {calc/03/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{option()} и \texttt{if()}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-shared -DBUILD\_SHARED=ON}!
+!\shellcommand{cmake --build build-shared}!
+!\dots!
+[ 50%] Linking C shared library libcalc.so
+[100%] Built target calc_app
+!\shellcommand{./build-shared/calc\_app}!
+2 + 3 = 5
+!\dots!
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Подкаталоги: \texttt{add\_subdirectory()}}
+
+  Проект распадается по каталогам, CMake делает это сам ---
+  через \texttt{add\_subdirectory()}:
+
+  \vspace{0.5em}
+
+  \myinputlisting[minted language=text]
+    {presentations/02-cmake/src/}
+    {calc-subdir-tree.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Подкаталоги: \texttt{add\_subdirectory()}}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=cmake]
+        {presentations/02-cmake/src/}
+        {calc-subdir/CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=cmake]
+        {presentations/02-cmake/src/}
+        {calc-subdir/lib/CMakeLists.txt}
+
+    \end{column}
+
+  \end{columns}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S calc-subdir -B build-subdir -DCMAKE\_BUILD\_TYPE=Release}!
+!\dots!
+!\shellcommand{cmake --build build-subdir}!
+[ 50%] Linking C static library libcalc.a
+[100%] Linking C executable calc_app
+!\shellcommand{./build-subdir/app/calc\_app}!
+2 + 3 = 5
+!\dots!
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Конфигурация: \texttt{cmake -S . -B build}}
+
+  Форма: \texttt{cmake -S <source-dir> -B <build-dir>}
+  (CMake $\geq$ 3.13) --- исходный и сборочный каталоги явно; каталог
+  сборки создаётся сам.
+
+  \vspace{0.5em}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build -DCMAKE\_BUILD\_TYPE=Release}!
+-- The C compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /run/!\dots!/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/!\dots!/build
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Что сгенерировал CMake}
+
+  \begin{terminalwindow}
+!\shellcommand{ls build}!
+CMakeCache.txt  CMakeFiles  Makefile  cmake_install.cmake
+  \end{terminalwindow}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{grep -E '\char"5E(CMAKE\_BUILD\_TYPE|CMAKE\_C\_COMPILER|\dots):' CMakeCache.txt}!
+CMAKE_BUILD_TYPE:STRING=Release
+CMAKE_C_COMPILER:FILEPATH=/run/current-system/sw/bin/cc
+CMAKE_INSTALL_PREFIX:PATH=/usr/local
+CMAKE_GENERATOR:INTERNAL=Unix Makefiles
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Сборка: \texttt{cmake --build build}
+  (инкрементальная)}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake --build build}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+!\shellcommand{cmake --build build}!
+[ 50%] Built target calc
+[100%] Built target calc_app
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Сборка: \texttt{cmake --build build}
+  (инкрементальная)}
+
+  \begin{terminalwindow}
+!\shellcommand{touch calc.c}!
+!\shellcommand{cmake --build build}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Linking C executable calc_app
+[100%] Built target calc_app
+!\shellcommand{touch calc.h}!
+!\shellcommand{cmake --build build}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Генераторы: \texttt{-G}}
+
+  Генератор --- \enquote{формат} файлов сборки, которые пишет CMake.
+  На Linux по умолчанию --- Unix Makefiles; другой генератор --- флаг
+  \texttt{-G}:
+
+  \begin{center}
+
+    \renewcommand{\arraystretch}{1.4}
+
+    \begin{tabular}{|p{2.2cm}|p{2.7cm}|}
+
+      \hline
+
+      \textbf{Генератор} & \textbf{Файлы сборки} \\
+
+      \hline
+
+      Unix Makefiles (дефолт на Linux) & \texttt{Makefile} \\
+
+      \hline
+
+      Ninja & \texttt{build.ninja} \\
+
+      \hline
+
+      Visual Studio 17 2022 & \texttt{.sln} + \texttt{.vcxproj} \\
+
+      \hline
+
+      Xcode & \texttt{.xcodeproj} \\
+
+      \hline
+
+    \end{tabular}
+
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]{Генераторы: \texttt{-G}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-ninja -G Ninja}!
+!\dots!
+-- Build files have been written to: /tmp/!\dots!/build-ninja
+!\shellcommand{ls build-ninja}!
+build.ninja
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+!\shellcommand{cmake --build build-ninja}!
+[1/4] Building C object CMakeFiles/calc.dir/calc.c.o
+[2/4] Building C object CMakeFiles/calc_app.dir/main.c.o
+[3/4] Linking C static library libcalc.a
+[4/4] Linking C executable calc_app
+!\shellcommand{./build-ninja/calc\_app}!
+2 + 3 = 5
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Переконфигурация: один каталог --- новые опции}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-shared}!
+-- Build files have been written to: /tmp/!\dots!/build-shared
+!\shellcommand{cmake -L build-shared | grep BUILD\_SHARED}!
+!\myhighlight{yellow}{BUILD\_SHARED:BOOL=OFF}!
+!\shellcommand{cmake -S . -B build-shared -DBUILD\_SHARED=ON}!
+-- Build files have been written to: /tmp/!\dots!/build-shared
+!\shellcommand{cmake -L build-shared | grep BUILD\_SHARED}!
+!\myhighlight{yellow}{BUILD\_SHARED:BOOL=ON}!
+!\shellcommand{cmake --build build-shared}!
+[ 50%] Linking C shared library libcalc.so
+[ 50%] Built target calc
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+!\shellcommand{ldd build-shared/calc\_app | grep libcalc}!
+        libcalc.so => !\dots!/build-shared/libcalc.so
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Переменные и области: \texttt{set()} и
+  \texttt{CACHE}}
+
+  Два \enquote{мира} переменных: обычная (область каталога) и
+  кэш-переменная (\texttt{CMakeCache.txt}):
+
+  \vspace{0.5em}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/vars-demo/}
+    {CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Переменные и области: \texttt{set()} и
+  \texttt{CACHE}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S vars-demo -B build-vars}!
+-- WHO   = directory variable
+-- WHERE = default
+!\shellcommand{cmake -S vars-demo -B build-vars2 -DWHERE=from-cli}!
+-- WHO   = directory variable
+-- WHERE = from-cli
+!\shellcommand{grep WHERE build-vars2/CMakeCache.txt}!
+WHERE:STRING=from-cli
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{install()}: что ставить и куда}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={12-14}}]
+    {presentations/02-cmake/src/}
+    {calc/04/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Toolchain-файл: что это и когда читается}
+
+  Toolchain-файл --- CMake-скрипт: целевая платформа, компиляторы,
+  sysroot; передаётся переменной \texttt{CMAKE\_TOOLCHAIN\_FILE}:
+
+  \vspace{0.5em}
+
+  \begin{center}
+
+    \begin{tikzpicture}[
+      box/.style={draw, thick, align=center, inner sep=3pt,
+        font=\footnotesize, minimum height=0.7cm},
+      arr/.style={->, thick}
+    ]
+
+      \node[box] (a) {\texttt{CMakeLists.txt}};
+
+      \node[box, below=0.6cm of a] (b)
+        {\texttt{project()}};
+
+      \node[box, below=0.6cm of b] (c)
+        {читается toolchain-файл};
+
+      \node[box, below=0.6cm of c] (d)
+        {определение компиляторов};
+
+      \draw[arr] (a.south) -- (b.north);
+
+      \draw[arr] (b.south) -- (c.north);
+
+      \draw[arr] (c.south) -- (d.north);
+
+    \end{tikzpicture}
+
+  \end{center}
+
+  \bigbreak
+
+  Всё \enquote{до \texttt{project()}} --- в toolchain-файл или на
+  командную строку.
+
+\end{frame}
+
+\begin{frame}[fragile]{Живое демо: \texttt{demo-toolchain.cmake}}
+
+  \enquote{Кросс} на ту же архитектуру (Linux x86\_64
+  $\rightarrow$ Linux x86\_64): доказательство механизма, а не
+  архитектуры. Файл задаёт \texttt{CMAKE\_C\_COMPILER} и маркер
+  \texttt{TOOLCHAIN\_MARKER}.
+
+  \vspace{0.5em}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/toolchain/}
+    {demo-toolchain.cmake}
+
+\end{frame}
+
+\begin{frame}[fragile]{Живое демо: \texttt{demo-toolchain.cmake}}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/}
+    {calc/06/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Живое демо: \texttt{demo-toolchain.cmake}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-tc \ \\ -DCMAKE\_TOOLCHAIN\_FILE=\dmtc}!
+-- toolchain file read (before project())
+-- toolchain file read (before project())
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+-- toolchain marker: loaded: !\dots!/demo-toolchain.cmake
+-- CROSSCOMPILING = TRUE
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{--toolchain}: вторая форма, порядок
+  чтения}
+
+  Вторая форма (CMake $\geq$ 3.21):
+  \texttt{cmake \dots --toolchain <файл>} --- эквивалент
+  \texttt{-DCMAKE\_TOOLCHAIN\_FILE=\dots}; результат тот же.
+
+  \vspace{0.5em}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/toolchain/order-demo/}
+    {CMakeLists.txt}
+
+  \vspace{0.5em}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-order \ \\ -DCMAKE\_TOOLCHAIN\_FILE=\dmtc}!
+-- operator ABOVE project()
+-- toolchain file read (before project())
+-- toolchain file read (before project())
+-- The C compiler identification is GNU 15.3.0
+-- after project(): /usr/bin/gcc
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Кросс-компиляция aarch64 (иллюстративно):
+  toolchain-файл}
+
+  Настоящий cross-toolchain: Linux x86\_64 $\rightarrow$ Linux aarch64.
+
+  \textbf{Пример иллюстративный:} кросс-компилятора
+  (\texttt{/usr/bin/aarch64-linux-gnu-gcc}) в окружении нет.
+  Проверено лишь, что CMake \textbf{загружает} файл и
+  \textbf{подхватывает} из него \texttt{CMAKE\_C\_COMPILER} (реальная
+  ошибка ниже --- само доказательство); перекрестная сборка и вывод
+  \texttt{file} \textbf{НЕ выполнялись}.
+
+  \vspace{0.5em}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/toolchain/}
+    {aarch64-fragment.cmake}
+
+\end{frame}
+
+\begin{frame}[fragile]{Кросс-компиляция aarch64 (иллюстративно):
+  результат}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-arm \ \\ -DCMAKE\_TOOLCHAIN\_FILE=\armtc}!
+-- The C compiler identification is unknown
+CMake Error at CMakeLists.txt:2 (project):
+  The CMAKE_C_COMPILER:
+    /usr/bin/aarch64-linux-gnu-gcc
+  is not a full path to an existing compiler tool.
+  \end{terminalwindow}
+
+  \bigbreak
+
+  Ожидаемый результат (\textbf{не выполнялся} --- иллюстрация того,
+  что было бы с установленным кросс-компилятором и sysroot):
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-arm \ \\ -DCMAKE\_TOOLCHAIN\_FILE=\armtc}!
+!\shellcommand{cmake --build build-arm}!
+!\shellcommand{file build-arm/calc\_app}!
+build-arm/calc_app: ELF 64-bit LSB executable, ARM aarch64, !\dots!
+  \end{terminalwindow}
+
+  \bigbreak
+
+  \underline{Итог блока: тот же \texttt{CMakeLists.txt}, та же
+  \texttt{cmake --build} ---}
+
+  \underline{\enquote{кросс} задаётся одним файлом
+  на этапе configure.}
+
+\end{frame}
+
+\begin{frame}[fragile]{Подводный камень: \texttt{CMAKE\_C\_COMPILER}
+  задан поздно}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.5\textwidth}
+
+      \begin{itemize}
+
+        \item Подводный камень:
+          \texttt{set(CMAKE\_C\_COMPILER \dots)} после
+          \texttt{project()} --- поздно: компилятор уже определён
+          (toolchain-файл читается при первом \texttt{project()}) и его
+          определение кэшируется.
+
+      \end{itemize}
+
+      \myinputlisting[minted language=cmake,
+        minted options={fontsize=\footnotesize, breaklines,
+          breakanywhere, linenos, escapeinside=||, numbersep=2pt}]
+        {presentations/02-cmake/src/toolchain/late-demo/}
+        {CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build-late}!
+-- The C compiler identification is Clang 21.1.8
+-- after set(): /usr/bin/gcc
+      \end{terminalwindow}
+
+      \vspace{0.4em}
+
+      Clang выбран (хостовый \texttt{cc}); переменная после
+      \texttt{project()} поменялась --- но сборка пойдёт на уже
+      определённом компиляторе.
+
+      \vspace{0.4em}
+
+      Переконфигурация не меняет уже прочитанный toolchain-файл ---
+      нужен новый каталог сборки.
+
+    \end{column}
+
+  \end{columns}
+
+  \bigbreak
+
+  \begin{center}
+
+    \fbox{\textbf{Правило:} всё \enquote{до \texttt{project()}} ---
+    в toolchain-файл или в \texttt{-D} на командной строке.}
+
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{install}: запуск}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake --install build --prefix build/install}!
+-- Install configuration: "Release"
+-- Installing: !\dots!/build/install/bin/calc_app
+-- Installing: !\dots!/build/install/lib/libcalc.a
+-- Installing: !\dots!/build/install/include/calc.h
+  \end{terminalwindow}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{find build/install -type f | sort}!
+build/install/bin/calc_app
+build/install/include/calc.h
+build/install/lib/libcalc.a
+!\shellcommand{./build/install/bin/calc\_app}!
+!\myhighlight{yellow}{2 + 3 = 5}!
+  \end{terminalwindow}
+
+  \bigbreak
+
+  Работает из install-места: статическая библиотека \enquote{вшита}
+  в \texttt{calc\_app}.
+
+\end{frame}
+
+\begin{frame}{Шпаргалка: команды лекции}
+
+  \begin{table}[h]
+
+    \begin{center}
+
+      \small
+
+      \renewcommand{\arraystretch}{1.15}
+
+      \begin{tabular}{|p{3.0cm}|p{9.6cm}|}
+
+        \hline
+
+        \textbf{Этап} & \textbf{Команда} \\
+
+        \hline
+
+        configure
+          & \texttt{cmake -S . -B build
+            -DCMAKE\_BUILD\_TYPE=Release} \\
+
+        \hline
+
+        configure с опциями
+          & \texttt{\dots\ -DBUILD\_SHARED=ON} \\
+
+        \hline
+
+        configure, кросс
+          & \texttt{\dots\ -DCMAKE\_TOOLCHAIN\_FILE=tc.cmake} \\
+
+        \hline
+
+        configure, кросс (форма 2)
+          & \texttt{\dots\ --toolchain tc.cmake} \\
+
+        \hline
+
+        генератор
+          & \texttt{cmake -S . -B build-ninja -G Ninja} \\
+
+        \hline
+
+        посмотреть опции
+          & \texttt{cmake -L build} \\
+
+        \hline
+
+        переконфигурация
+          & тот же \texttt{cmake -S . -B build}
+            с новыми \texttt{-D\dots} \\
+
+        \hline
+
+        сборка
+          & \texttt{cmake --build build} \\
+
+        \hline
+
+        сборка одной цели
+          & \texttt{cmake --build build --target calc} \\
+
+        \hline
+
+        установка
+          & \texttt{cmake --install build
+            --prefix build/install} \\
+
+        \hline
+
+      \end{tabular}
+
+    \end{center}
+
+  \end{table}
+
+  \vspace{0.4em}
+
+  \small
+
+  Одна пара команд на этап --- при любом генераторе и платформе:
+  в этом и есть смысл мета-системы.
+
+\end{frame}
+
+\begin{frame}{Чего не было (следующие шаги)}
+
+  \small
+
+  \begin{itemize}
+
+    \item \texttt{find\_package()} + config-пакеты
+      (CPM/FetchContent) --- сторонние библиотеки: наш
+      \texttt{calc} живёт в одном каталоге, реальные проекты
+      тянут зависимости.
+
+    \item \texttt{CTest} --- тесты, встроенные в сборку
+      (\texttt{enable\_testing()}, \texttt{add\_test()}).
+
+    \item \texttt{add\_custom\_command()} /
+      \texttt{add\_custom\_target()} --- шаги, которые не
+      являются компиляцией: генерация кода, упаковка, отчёты.
+
+    \item \texttt{CMakePresets.json} --- именованные пресеты
+      configure (генератор, опции, toolchain) в JSON: меньше
+      копировать командную строку.
+
+    \item \texttt{CPack} --- готовые пакеты
+      (.deb/.rpm/\dots) из той же конфигурации.
+
+  \end{itemize}
+
+  \vspace{0.6em}
+
+  По одной строке на тему: естественное продолжение, когда
+  проект перерастает \texttt{add\_executable} +
+  \texttt{target\_link\_libraries}.
+
+\end{frame}
+
+\begin{frame}{Итоги}
+
+  \small
+
+  \begin{columns}[T]
+
+    \begin{column}{0.56\textwidth}
+
+      \begin{itemize}
+
+        \item CMake --- мета-система\footnotemark{} сборки:
+          \texttt{CMakeLists.txt} (цели) $\rightarrow$
+          генератор $\rightarrow$ \texttt{Makefile}/
+          \texttt{build.ninja} $\rightarrow$ make/ninja
+          (лекция 1 остаётся в силе, а не выбывается).
+
+        \item Цикл: configure
+          (\texttt{cmake -S . -B build}) $\rightarrow$ build
+          (\texttt{cmake --build}) $\rightarrow$ install
+          (\texttt{cmake --install});
+          \texttt{CMakeCache.txt} --- память решений;
+          reconfigure --- тот же \texttt{cmake}
+          с новыми \texttt{-D}.
+
+        \item Цели + \texttt{PUBLIC}/\texttt{PRIVATE}/
+          \texttt{INTERFACE}: \enquote{требования к
+          использованию} (включённые каталоги, библиотеки)
+          переносятся по графу зависимостей --- писать
+          \texttt{-I}/\texttt{-l} в клиентах не нужно.
+
+        \item Переменные: обычные (область каталога) vs
+          кэш-переменные (\texttt{-D} из командной строки);
+          \texttt{option()} + \texttt{if()} ---
+          настраиваемый проект.
+
+        \item Toolchain-файл: читается при первом
+          \texttt{project()}, до компиляторов, --- механизм
+          кросс-компиляции (пример aarch64 ---
+          иллюстративный).
+
+        \item \texttt{calc/01/CMakeLists.txt} на 8 строк --- и
+          кроссплатформенность в комплекте.
+
+      \end{itemize}
+
+      \footnotetext{\url{\cmakehelp/manual/cmake.1.html}}
+
+    \end{column}
+
+    \begin{column}{0.42\textwidth}
+
+      \begin{center}
+
+        \begin{tikzpicture}[
+          box/.style={draw, thick, align=left, inner sep=2pt,
+            font=\footnotesize, text width=3.5cm}
+        ]
+
+          \node[box] (s1) at (0,0)
+            {\texttt{calc/01/CMakeLists.txt}\\8 строк};
+
+          \node[box] (s2) at (0.35,1)
+            {\texttt{calc/02/CMakeLists.txt}\\стандарт + флаги};
+
+          \node[box] (s3) at (0.7,2)
+            {\texttt{calc/03/CMakeLists.txt}\\option/if};
+
+          \node[box] (s4) at (1.05,3)
+            {\texttt{calc/04/CMakeLists.txt}\\install()};
+
+          \node[box] (s5) at (1.4,4)
+            {\texttt{calc/05/CMakeLists.txt}\\SHARED};
+
+          \node[box] (s6) at (1.75,5)
+            {\texttt{calc/06/CMakeLists.txt}\\+ toolchain};
+
+          \draw[->, thick] (s1.north) -- (s2.south);
+
+          \draw[->, thick] (s2.north) -- (s3.south);
+
+          \draw[->, thick] (s3.north) -- (s4.south);
+
+          \draw[->, thick] (s4.north) -- (s5.south);
+
+          \draw[->, thick] (s5.north) -- (s6.south);
+
+        \end{tikzpicture}
+
+      \end{center}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}{Ссылки}
+
+  \begin{itemize}
+
+    \item Документация CMake (latest): \url{\cmakehelp/} --- основные
+      узлы: \texttt{cmake(1)}, \texttt{cmake-language(7)},
+      \texttt{cmake-buildsystem(7)}, \texttt{cmake-toolchains(7)},
+      \texttt{cmake-generators(7)}.
+
+    \item Примеры лекции: каталог \texttt{presentations/02-cmake/src/}
+      презентации.
+
+  \end{itemize}
+
+\end{frame}
+\end{document}

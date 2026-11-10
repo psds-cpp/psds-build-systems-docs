@@ -358,3 +358,25 @@ expensive forever, not just once:
     `lastline`/`firstline` pairing of split listings.
     Fix every reported line (rebuild if needed) and re-run until
     it prints `OK`.
+
+8. Check in-place terminal line wrapping (mandatory, mechanical):
+    Check 2 covers only files from `src/`.
+    In-place environments (`terminalwindow`,
+    `myinplacelisting`, `mytitledinplacelisting`) wrap SILENTLY
+    as well (no Overfull in the log), so this check is
+    mandatory after every build too.
+    Run the bundled script — it prints ONLY the violating lines:
+    ```shell
+    nix develop --command sh .opencode/skills/luatex-presentation/scripts/check-wraps.sh <NAME>
+    ```
+    It renders each terminal line to visible text (the
+    `!\shellcommand{...}!` prompt becomes `> ...`,
+    `!\myhighlight{...}{...}!` unwraps to its payload,
+    `!\dots!`/`\dots` become the ellipsis, the document's own
+    `\newcommand` macros expand), splits on intentional `\\`
+    line breaks, and requires each part to fit inside ONE
+    physical line of the same `pdftotext -layout` dump as
+    check 2 (prepare it first).
+    A reported line is wrapped: widen the environment (e.g. a
+    full-width terminal instead of a column) or reduce the font
+    size, rebuild, and re-run the script.

@@ -14,11 +14,12 @@ PDF_TARGETS := $(patsubst presentations/%.tex,%.pdf,$(TEX_SOURCES))
 
 all: build
 
-build: 01-gnu-make.pdf
+build: 01-gnu-make.pdf 02-cmake.pdf
 
 install: build
 	mkdir -p "$(PREFIX)/presentations"
 	cp "$(BUILD_DIR)/01-gnu-make.pdf" "$(PREFIX)/presentations/01-gnu-make.pdf"
+	cp "$(BUILD_DIR)/02-cmake.pdf" "$(PREFIX)/presentations/02-cmake.pdf"
 	$(if $(PDF_TARGETS),cp $(addprefix $(BUILD_DIR)/,$(PDF_TARGETS)) "$(PREFIX)/presentations/")
 
 clean:
@@ -30,6 +31,7 @@ help:
 	@printf "all\tbuild all presentations and homeworks\n"
 	@printf "build\tbuild all presentations and homeworks\n"
 	@printf "01-gnu-make.pdf\tbuild presentation 01-gnu-make.pdf\n"
+	@printf "02-cmake.pdf\tbuild presentation 02-cmake.pdf\n"
 	@printf "clean\tremove build artifacts\n"
 	@printf "help\tprint this message\n"
 	@printf "install\tinstall all presentations and homeworks\n"
@@ -62,4 +64,23 @@ endef
 	packages/mylisting.sty \
 	$(wildcard presentations/01-gnu-make/src/*) \
 	$(wildcard presentations/01-gnu-make/src/lib/*)
+	$(call generate_pdf,$<,$@)
+
+02-cmake.pdf: \
+	presentations/02-cmake/02-cmake.tex \
+	presentations/presentationtemplate.sty \
+	presentations/images/binary-file.png \
+	presentations/images/source_code.png \
+	presentations/images/prosoft-logo.png \
+	packages/terminal.sty \
+	packages/mylisting.sty \
+	$(wildcard presentations/02-cmake/src/*) \
+	$(wildcard presentations/02-cmake/src/calc/*/*) \
+	$(wildcard presentations/02-cmake/src/calc-subdir/*) \
+	$(wildcard presentations/02-cmake/src/calc-subdir/app/*) \
+	$(wildcard presentations/02-cmake/src/calc-subdir/lib/*) \
+	$(wildcard presentations/02-cmake/src/toolchain/*) \
+	$(wildcard presentations/02-cmake/src/toolchain/late-demo/*) \
+	$(wildcard presentations/02-cmake/src/toolchain/order-demo/*) \
+	$(wildcard presentations/02-cmake/src/vars-demo/*)
 	$(call generate_pdf,$<,$@)
