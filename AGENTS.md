@@ -33,8 +33,10 @@ is controlled by the `skill` permission action in `opencode.json` only.
   * Validates the final build via `install` skill.
 * **Context Access:** full shell except `git push` / `git reset`
   (`git commit` is allowed, the `install` flow relies on
-  `git add` / production build); edits restricted to harness files
-  (`.opencode/**`, `opencode.json`, `AGENTS.md`); access to all
+  `git add` / production build); full edit access to the
+  repository (required for resolving merge conflicts and harness
+  management); content work on documents is still delegated to
+  subagents per the workflows below; access to all
   skills (uses `install` and `build` and reads the `luatex-*`
   skills to validate the final PDF against their rules).
 
