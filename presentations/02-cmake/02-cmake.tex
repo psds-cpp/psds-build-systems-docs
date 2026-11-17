@@ -481,6 +481,28 @@ cc -O3 -DNDEBUG CMakeFiles/calc_app.dir/main.c.o -o calc_app libcalc.a
 
 \end{frame}
 
+\begin{frame}[fragile]{Включение модулей: \texttt{include()}\footnotemark{}
+  \footnotetext{\url{\cmakehelp/command/include.html}}}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={3,4,5,6}}]
+    {presentations/02-cmake/src/}
+    {include-demo/CMakeLists.txt}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S include-demo -B build-include}!
+!\dots!
+-- my-module.cmake: loaded
+-- greeting: hello from my-module.cmake
+-- libdir:   lib64
+-- Configuring done (0.3s)
+  \end{terminalwindow}
+
+\end{frame}
+
 \begin{frame}[fragile]{Встроенные переменные}
 
   CMake поддерживает огромное число встроенных переменных\footnotemark{},
