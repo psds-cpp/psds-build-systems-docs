@@ -289,7 +289,8 @@
           \node[box, right=6.0cm of app] (lib) {\texttt{calc}};
 
           \draw[->, thick] (app.east) -- node[above, font=\footnotesize, align=center]
-            {\texttt{target\_link\_libraries(calc\_app PRIVATE calc)} \\ \enquote{линкуется с}} (lib.west);
+            {\texttt{target\_link\_libraries(calc\_app PRIVATE calc)} \\
+            \enquote{линкуется с}} (lib.west);
 
         \end{tikzpicture}
 
@@ -864,11 +865,53 @@ cmake_install.cmake
   \bigbreak
 
   \begin{terminalwindow}
-!\shellcommand{cmake --install build !\myhighlight{yellow}{--prefix}! build/install}!
+!\shellcommand{cmake --install build \myhighlight{yellow}{--prefix} build/install}!
 -- Install configuration: "Release"
 -- Installing: !\dots!/build/install/bin/calc_app
 -- Installing: !\dots!/build/install/lib/libcalc.a
 -- Installing: !\dots!/build/install/include/calc.h
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{CPack}
+
+  CPack\footnotemark{} --- встроенный модуль CMake, который формирует
+  дистрибутивные пакеты проекта на основе install-правил.
+  \texttt{include(CPack)} добавляет цель сборки \texttt{package}.
+
+  \bigbreak
+
+  \myinputlisting[minted language=cmake,
+    minted options={fontsize=\footnotesize, breaklines,
+      breakanywhere, linenos, escapeinside=||, numbersep=2pt,
+      highlightlines={16-19}}]
+    {presentations/02-cmake/src/}
+    {cpack-demo/CMakeLists.txt}
+
+  \footnotetext{\url{\cmakehelp/module/CPack.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{CPack}
+
+  \begin{terminalwindow}[!!][after skip=0pt]
+!\shellcommand{cmake --build build/ --target package}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+Run CPack packaging tool!\dots!
+CPack: Create package using TGZ
+CPack: Install projects
+CPack: - Run preinstall target for: calc
+CPack: - Install project: calc []
+CPack: Create package
+CPack: - package: !\dots!/calc-1.0-Linux.tar.gz generated.
+!\shellcommand{ls build/calc-1.0-Linux.tar.gz}!
+build/calc-1.0-Linux.tar.gz
   \end{terminalwindow}
 
 \end{frame}
