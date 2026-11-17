@@ -16,6 +16,8 @@
 
 \newcommand{\stdfl}{-std=gnu99 -Wall -Wextra}
 
+\newcommand{\dmfl}{-DENABLE\_TRACE -DLOG\_LEVEL=DEBUG}
+
 \newcommand{\dmtc}{toolchain/demo-toolchain.cmake}
 
 \newcommand{\armtc}{toolchain/aarch64-toolchain.cmake}
@@ -288,7 +290,8 @@
 
           \node[box, right=6.0cm of app] (lib) {\texttt{calc}};
 
-          \draw[->, thick] (app.east) -- node[above, font=\footnotesize, align=center]
+          \draw[->, thick] (app.east) --
+            node[above, font=\footnotesize, align=center]
             {\texttt{target\_link\_libraries(calc\_app PRIVATE calc)} \\
             \enquote{линкуется с}} (lib.west);
 
@@ -434,6 +437,37 @@ cc -O3 -DNDEBUG CMakeFiles/calc_app.dir/main.c.o -o calc_app libcalc.a
   Она ведет себя аналогично опции \texttt{BUILD\_SHARED} с предыдущих слайдов.
 
   \footnotetext{\url{\cmakehelp/variable/BUILD\_SHARED\_LIBS.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{Опция и дефиниция препроцессора}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={4,5,10,12}}]
+    {presentations/02-cmake/src/}
+    {calc/09/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Опция и дефиниция препроцессора}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S calc/09/ -B /tmp/calc-09 -DENABLE\_TRACE=ON -DLOG\_LEVEL=DEBUG}!
+-- The C compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /run/!\dots!/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/calc-09
+!\shellcommand{cmake --build /tmp/calc-09/ -- VERBOSE=1}!
+cc !\myhighlight{yellow}{\dmfl}! -I!\dots!/calc -MD -o CMakeFiles/!\dots! -c calc.c
+!\dots!
+[100%] Built target calc_app
+  \end{terminalwindow}
 
 \end{frame}
 
