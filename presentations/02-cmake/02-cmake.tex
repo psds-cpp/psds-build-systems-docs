@@ -471,6 +471,119 @@ cc !\myhighlight{yellow}{\dmfl}! -I!\dots!/calc -MD -o CMakeFiles/!\dots! -c cal
 
 \end{frame}
 
+\begin{frame}[fragile]{Генераторные выражения}
+
+  \begin{itemize}
+
+    \item Генераторное выражение --- выражение вида \texttt{\$<\dots>},
+      допустимое во многих свойствах целей и \texttt{target\_*}-командах
+      (например, \texttt{target\_compile\_definitions},
+      \texttt{target\_link\_libraries},
+      \texttt{target\_include\_directories}).
+
+    \item Выражения вычисляются\footnotemark{} на этапе генерации
+      файлов сборки после парсинга и конфигурации
+      \texttt{CMakeLists.txt}
+
+  \end{itemize}
+
+  \footnotetext{\url{\cmakehelp/manual/cmake-generator-expressions.7.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{Базовые условия}
+
+  \begin{table}[h]
+
+    \begin{center}
+
+      \renewcommand{\arraystretch}{1.5}
+
+      \begin{tabular}{|p{5.5cm}|p{7.5cm}|}
+
+        \hline
+
+        \textbf{Выражение} & \textbf{Описание} \\
+
+        \hline
+
+        \texttt{\$<CONFIG:<cfg>>}
+          & \texttt{1}, если конфигурация сборки входит в список
+            \texttt{<cfg>} (через запятую), иначе \texttt{0};
+            сравнение без учета регистра \\
+
+        \hline
+
+        \texttt{\$<STREQUAL:<string1>,<string2>>}
+          & \texttt{1}, если строки лексикографически равны
+            (с учетом регистра), иначе \texttt{0} \\
+
+        \hline
+
+        \texttt{\$<PLATFORM\_ID>}
+          & CMake platform id текущей системы (например,
+            \texttt{Linux}) \\
+
+        \hline
+
+        \texttt{\$<IF:<cond>,<true>,<false>>}
+          & \texttt{<true>}, если \texttt{<cond>} равно \texttt{1},
+            иначе \texttt{<false>} \\
+
+        \hline
+
+      \end{tabular}
+
+    \end{center}
+
+  \end{table}
+
+\end{frame}
+
+\begin{frame}[fragile]{Тривиальный пример}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      numbersep=2pt, highlightlines={6-7}}]
+    {presentations/02-cmake/src/}
+    {genex/CMakeLists.txt}
+
+  \bigbreak
+
+  \myinputlisting[minted language=c,
+    minted options={breaklines, breakanywhere, linenos,
+      numbersep=2pt, highlightlines={5}}]
+    {presentations/02-cmake/src/}
+    {genex/app.c}
+
+\end{frame}
+
+\begin{frame}[fragile]{Пример: вывод}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S genex -B build-debug \myhighlight{yellow}{-DCMAKE\_BUILD\_TYPE=Debug}}!
+!\dots!
+[ 50%] Building C object CMakeFiles/app.dir/app.c.o
+[100%] Linking C executable app
+[100%] Built target app
+!\shellcommand{./build-debug/app}!
+!\myhighlight{yellow}{mode: DEBUG}!
+!\shellcommand{cmake -S genex -B build-release \myhighlight{yellow}{-DCMAKE\_BUILD\_TYPE=Release}}!
+!\dots!
+[ 50%] Building C object CMakeFiles/app.dir/app.c.o
+[100%] Linking C executable app
+[100%] Built target app
+!\shellcommand{./build-release/app}!
+!\myhighlight{yellow}{mode: RELEASE}!
+  \end{terminalwindow}
+
+  \bigbreak
+
+  Один \texttt{CMakeLists.txt} --- результат зависит только от
+  конфигурации.
+
+\end{frame}
+
 \begin{frame}[fragile]{Подкаталоги: \texttt{add\_subdirectory()}}
 
   Через \texttt{add\_subdirectory()} можно включать в проект CMakeLists.txt
