@@ -20,6 +20,7 @@
 
 \newcommand{\armtc}{toolchain/aarch64-toolchain.cmake}
 
+
 \makeatletter
 \newdimen\cm@FVleftmargin
 \let\cm@FVSetupFont\FV@SetupFont
@@ -864,11 +865,81 @@ cmake_install.cmake
   \bigbreak
 
   \begin{terminalwindow}
-!\shellcommand{cmake --install build !\myhighlight{yellow}{--prefix}! build/install}!
+!\shellcommand{cmake --install build \myhighlight{yellow}{--prefix} build/install}!
 -- Install configuration: "Release"
 -- Installing: !\dots!/build/install/bin/calc_app
 -- Installing: !\dots!/build/install/lib/libcalc.a
 -- Installing: !\dots!/build/install/include/calc.h
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{CTest}
+
+  CTest\footnotemark{} --- встроенный в CMake инструмент для запуска
+  тестов. Тесты объявляются в \texttt{CMakeLists.txt} командой
+  \texttt{add\_test()} и запускаются командой \texttt{ctest} из
+  директории сборки.
+
+  \footnotetext{\url{\cmakehelp/manual/ctest.1.html}}
+
+  \bigbreak
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={10,12}}]
+    {presentations/02-cmake/src/}
+    {calc/09/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{CTest}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+!\dots!
+-- Build files have been written to: /tmp/!\dots!/build
+!\shellcommand{cmake --build build}!
+!\dots!
+[100%] Built target calc_app
+!\shellcommand{cd build}!
+!\shellcommand{ctest}!
+Test project /tmp/!\dots!/build
+    Start 1: smoke
+1/1 Test #1: smoke !\dots!   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   0.00 sec
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{CTest}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, fontsize=\small, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={13}}]
+    {presentations/02-cmake/src/}
+    {calc/10/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{CTest}
+
+  \begin{terminalwindow}
+!\shellcommand{cd build}!
+!\shellcommand{ctest}!
+Test project /tmp/!\dots!/build
+!\dots!
+1/2 Test #1: smoke !\dots!   Passed    0.00 sec
+!\dots!
+2/2 Test #2: broken !\dots!***Failed    0.00 sec
+!\dots!
+The following tests FAILED:
+	  2 - broken (Failed)
+Errors while running CTest
+!\dots!
   \end{terminalwindow}
 
 \end{frame}

@@ -15,9 +15,10 @@
 #
 # Terminal lines may carry TeX markup, so each line is first
 # rendered to its visible text: the `!\shellcommand{...}!`
-# prompt becomes `> ...`, `!\myhighlight{...}{...}!` unwraps
-# to its payload, `!\dots!`/`\dots` become the ellipsis
-# character, escaped characters (`\_`, `\-`, `\&`, `\$`, `\#`,
+# prompt becomes `> ...`, `!\myhighlight{...}{...}!` (and the
+# bare `\myhighlight{...}{...}` used inside a shellcommand
+# region) unwraps to its payload, `!\dots!`/`\dots` become the
+# ellipsis character, escaped characters (`\_`, `\-`, `\&`, `\$`, `\#`,
 # `\%`, `\char"5E`) unescape, other `!TeX!` escape regions
 # unwrap to their payload, and the document's own \newcommand
 # macros from the preamble are expanded (both the one-line
@@ -70,6 +71,16 @@ awk -v TEXF="$TEX" '
       m = substr(s, RSTART, RLENGTH)
       b = index(m, "}{")
       inner = substr(m, b + 2, length(m) - b - 3)
+      s = substr(s, 1, RSTART - 1) inner substr(s, RSTART + RLENGTH)
+    }
+    # bare form: \myhighlight{...}{...} inside a
+    # !\shellcommand{...}! region (house-sanctioned, e.g.
+    # 01-gnu-make.tex:767): minted runs it as TeX inside the
+    # escape region, so it renders to its payload
+    while (match(s, /\\myhighlight\{[^{}]*\}\{[^{}]*\}/)) {
+      m = substr(s, RSTART, RLENGTH)
+      b = index(m, "}{")
+      inner = substr(m, b + 2, length(m) - b - 2)
       s = substr(s, 1, RSTART - 1) inner substr(s, RSTART + RLENGTH)
     }
     if (s ~ /^!\\shellcommand\{/) s = "> " substr(s, 16)
