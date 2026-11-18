@@ -76,6 +76,7 @@ endef
 	packages/mylisting.sty \
 	$(wildcard presentations/02-cmake/src/*) \
 	$(wildcard presentations/02-cmake/src/calc/*/*) \
+	$(wildcard presentations/02-cmake/src/calc/11/cmake/*) \
 	$(wildcard presentations/02-cmake/src/calc-subdir/*) \
 	$(wildcard presentations/02-cmake/src/calc-subdir/app/*) \
 	$(wildcard presentations/02-cmake/src/calc-subdir/lib/*) \
@@ -85,5 +86,9 @@ endef
 	$(wildcard presentations/02-cmake/src/func-macro-demo/*) \
 	$(wildcard presentations/02-cmake/src/func-macro-demo/macro/*) \
 	$(wildcard presentations/02-cmake/src/func-macro-demo/function/*) \
-	$(wildcard presentations/02-cmake/src/vars-demo/*)
+	$(wildcard presentations/02-cmake/src/vars-demo/*) \
+	$(wildcard presentations/02-cmake/src/genex/*) \
+	$(wildcard presentations/02-cmake/src/include-demo/*) \
+	$(wildcard presentations/02-cmake/src/include-demo/cmake/*) \
+	$(wildcard presentations/02-cmake/src/cpack-demo/*)
 	$(call generate_pdf,$<,$@)
