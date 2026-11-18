@@ -16,10 +16,11 @@
 
 \newcommand{\stdfl}{-std=gnu99 -Wall -Wextra}
 
+\newcommand{\dmfl}{-DENABLE\_TRACE -DLOG\_LEVEL=DEBUG}
+
 \newcommand{\dmtc}{toolchain/demo-toolchain.cmake}
 
 \newcommand{\armtc}{toolchain/aarch64-toolchain.cmake}
-
 
 \makeatletter
 \newdimen\cm@FVleftmargin
@@ -290,7 +291,8 @@
           \node[box, right=6.0cm of app] (lib) {\texttt{calc}};
 
           \draw[->, thick] (app.east) -- node[above, font=\footnotesize, align=center]
-            {\texttt{target\_link\_libraries(calc\_app PRIVATE calc)} \\ \enquote{линкуется с}} (lib.west);
+            {\texttt{target\_link\_libraries(calc\_app PRIVATE calc)} \\%
+              \enquote{линкуется с}} (lib.west);
 
         \end{tikzpicture}
 
@@ -437,6 +439,150 @@ cc -O3 -DNDEBUG CMakeFiles/calc_app.dir/main.c.o -o calc_app libcalc.a
 
 \end{frame}
 
+\begin{frame}[fragile]{Опция и дефиниция препроцессора}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={4,5,10,12}}]
+    {presentations/02-cmake/src/}
+    {calc/09/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Опция и дефиниция препроцессора}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S calc/09/ -B /tmp/calc-09 -DENABLE\_TRACE=ON -DLOG\_LEVEL=DEBUG}!
+-- The C compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /run/!\dots!/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Configuring done (0.3s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/calc-09
+!\shellcommand{cmake --build /tmp/calc-09/ -- VERBOSE=1}!
+cc !\myhighlight{yellow}{\dmfl}! -I!\dots!/calc -MD -o CMakeFiles/!\dots! -c calc.c
+!\dots!
+[100%] Built target calc_app
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Генераторные выражения}
+
+  \begin{itemize}
+
+    \item Генераторное выражение --- выражение вида \texttt{\$<\dots>},
+      допустимое во многих свойствах целей и \texttt{target\_*}-командах
+      (например, \texttt{target\_compile\_definitions},
+      \texttt{target\_link\_libraries},
+      \texttt{target\_include\_directories}).
+
+    \item Выражения вычисляются\footnotemark{} на этапе генерации
+      файлов сборки после парсинга и конфигурации
+      \texttt{CMakeLists.txt}
+
+  \end{itemize}
+
+  \footnotetext{\url{\cmakehelp/manual/cmake-generator-expressions.7.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{Базовые условия}
+
+  \begin{table}[h]
+
+    \begin{center}
+
+      \renewcommand{\arraystretch}{1.5}
+
+      \begin{tabular}{|p{5.5cm}|p{7.5cm}|}
+
+        \hline
+
+        \textbf{Выражение} & \textbf{Описание} \\
+
+        \hline
+
+        \texttt{\$<CONFIG:<cfg>>}
+          & \texttt{1}, если конфигурация сборки входит в список
+            \texttt{<cfg>} (через запятую), иначе \texttt{0};
+            сравнение без учета регистра \\
+
+        \hline
+
+        \texttt{\$<STREQUAL:<string1>,<string2>>}
+          & \texttt{1}, если строки лексикографически равны
+            (с учетом регистра), иначе \texttt{0} \\
+
+        \hline
+
+        \texttt{\$<PLATFORM\_ID>}
+          & CMake platform id текущей системы (например,
+            \texttt{Linux}) \\
+
+        \hline
+
+        \texttt{\$<IF:<cond>,<true>,<false>>}
+          & \texttt{<true>}, если \texttt{<cond>} равно \texttt{1},
+            иначе \texttt{<false>} \\
+
+        \hline
+
+      \end{tabular}
+
+    \end{center}
+
+  \end{table}
+
+\end{frame}
+
+\begin{frame}[fragile]{Тривиальный пример}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      numbersep=2pt, highlightlines={6-7}}]
+    {presentations/02-cmake/src/}
+    {genex/CMakeLists.txt}
+
+  \bigbreak
+
+  \myinputlisting[minted language=c,
+    minted options={breaklines, breakanywhere, linenos,
+      numbersep=2pt, highlightlines={5}}]
+    {presentations/02-cmake/src/}
+    {genex/app.c}
+
+\end{frame}
+
+\begin{frame}[fragile]{Пример: вывод}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S genex -B build-debug \myhighlight{yellow}{-DCMAKE\_BUILD\_TYPE=Debug}}!
+!\dots!
+[ 50%] Building C object CMakeFiles/app.dir/app.c.o
+[100%] Linking C executable app
+[100%] Built target app
+!\shellcommand{./build-debug/app}!
+!\myhighlight{yellow}{mode: DEBUG}!
+!\shellcommand{cmake -S genex -B build-release \myhighlight{yellow}{-DCMAKE\_BUILD\_TYPE=Release}}!
+!\dots!
+[ 50%] Building C object CMakeFiles/app.dir/app.c.o
+[100%] Linking C executable app
+[100%] Built target app
+!\shellcommand{./build-release/app}!
+!\myhighlight{yellow}{mode: RELEASE}!
+  \end{terminalwindow}
+
+  \bigbreak
+
+  Один \texttt{CMakeLists.txt} --- результат зависит только от
+  конфигурации.
+
+\end{frame}
+
 \begin{frame}[fragile]{Подкаталоги: \texttt{add\_subdirectory()}}
 
   Через \texttt{add\_subdirectory()} можно включать в проект CMakeLists.txt
@@ -479,6 +625,28 @@ cc -O3 -DNDEBUG CMakeFiles/calc_app.dir/main.c.o -o calc_app libcalc.a
     \end{column}
 
   \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Включение модулей: \texttt{include()}\footnotemark{}
+  \footnotetext{\url{\cmakehelp/command/include.html}}}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, breakanywhere, linenos,
+      escapeinside=||, numbersep=2pt, highlightlines={3,4,5,6}}]
+    {presentations/02-cmake/src/}
+    {include-demo/CMakeLists.txt}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S include-demo -B build-include}!
+!\dots!
+-- my-module.cmake: loaded
+-- greeting: hello from my-module.cmake
+-- libdir:   lib64
+-- Configuring done (0.3s)
+  \end{terminalwindow}
 
 \end{frame}
 
@@ -565,6 +733,59 @@ cc -O3 -DNDEBUG CMakeFiles/calc_app.dir/main.c.o -o calc_app libcalc.a
     \end{column}
 
   \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{function()} и \texttt{macro()}}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/func-macro-demo/}
+    {CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{macro()}: подстановка текста}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.58\textwidth}
+
+      \myinputlisting[minted language=cmake]
+        {presentations/02-cmake/src/func-macro-demo/macro/}
+        {CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.38\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- name: world
+-- LEAKED = set in macro
+!\dots!
+      \end{terminalwindow}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{function()}: область видимости}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/func-macro-demo/function/}
+    {CMakeLists.txt}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- name: world, flags: -Wall, rest: -Wextra;-O2
+-- LOCAL  = 
+-- SAID   = said: world
+!\dots!
+  \end{terminalwindow}
 
 \end{frame}
 
@@ -874,6 +1095,201 @@ cmake_install.cmake
 
 \end{frame}
 
+\begin{frame}[fragile]{CPack}
+
+  CPack\footnotemark{} --- встроенный модуль CMake, который формирует
+  дистрибутивные пакеты проекта на основе install-правил.
+  \texttt{include(CPack)} добавляет цель сборки \texttt{package}.
+
+  \bigbreak
+
+  \myinputlisting[minted language=cmake,
+    minted options={fontsize=\footnotesize, breaklines,
+      breakanywhere, linenos, escapeinside=||, numbersep=2pt,
+      highlightlines={16-19}}]
+    {presentations/02-cmake/src/}
+    {cpack-demo/CMakeLists.txt}
+
+  \footnotetext{\url{\cmakehelp/module/CPack.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{CPack}
+
+  \begin{terminalwindow}[!!][after skip=0pt]
+!\shellcommand{cmake --build build/ --target package}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+Run CPack packaging tool!\dots!
+CPack: Create package using TGZ
+CPack: Install projects
+CPack: - Run preinstall target for: calc
+CPack: - Install project: calc []
+CPack: Create package
+CPack: - package: !\dots!/calc-1.0-Linux.tar.gz generated.
+!\shellcommand{ls build/calc-1.0-Linux.tar.gz}!
+build/calc-1.0-Linux.tar.gz
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}{Зависимости}
+
+  Внешнюю библиотеку в проект можно подключить тремя способами:
+
+  \begin{itemize}
+
+    \item \texttt{find\_package} --- библиотека установлена на системе
+
+    \item \texttt{CMAKE\_MODULE\_PATH} --- собственный find-модуль проекта
+
+    \item \texttt{FetchContent} --- исходники скачиваются при configure
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{find\_package}\footnotemark{}
+  \footnotetext{\url{\cmakehelp/command/find_package.html}}}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, fontsize=\small, breakanywhere,
+      linenos, escapeinside=||, numbersep=2pt,
+      highlightlines={4,10}}]
+    {presentations/02-cmake/src/}
+    {calc/10/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{find\_package}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+-- !\myhighlight{yellow}{Found ZLIB}!: !\dots!/lib/libz.so (found version "1.3.2")
+-- Configuring done (1.3s)
+-- Build files have been written to: !\dots!/build
+!\shellcommand{cmake --build build}!
+[ 25%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 50%] Linking C static library libcalc.a
+[ 50%] Built target calc
+[ 75%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+!\shellcommand{./build/calc\_app}!
+3 24 -> 19
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{CMAKE\_MODULE\_PATH}}
+
+  Локальный модуль перекрывает встроенный.
+
+  \bigbreak
+
+  \begin{columns}[T]
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=cmake,
+        minted options={fontsize=\scriptsize, breaklines,
+          breakanywhere, linenos, escapeinside=||,
+          numbersep=2pt, highlightlines={4-5,7}}]
+        {presentations/02-cmake/src/}
+        {calc/11/CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.48\textwidth}
+
+      \myinputlisting[minted language=cmake,
+        minted options={fontsize=\scriptsize, breaklines,
+          breakanywhere, linenos, escapeinside=||,
+          numbersep=2pt, highlightlines={2,11}}]
+        {presentations/02-cmake/src/}
+        {calc/11/cmake/FindZLIB.cmake}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{CMAKE\_MODULE\_PATH}\footnotemark{}
+  \footnotetext{\url{\cmakehelp/variable/CMAKE_MODULE_PATH.html}}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+-- !\myhighlight{yellow}{Using local FindZLIB.cmake}!
+-- !\myhighlight{yellow}{Found ZLIB}!: !\dots!/lib/libz.so
+-- Configuring done (1.1s)
+-- Build files have been written to: !\dots!/build
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{FetchContent}}
+
+  \myinputlisting[minted language=cmake,
+    minted options={breaklines, fontsize=\small, breakanywhere,
+      linenos, escapeinside=||, numbersep=2pt,
+      highlightlines={5-10,13}}]
+    {presentations/02-cmake/src/}
+    {calc/12/CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{FetchContent}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+-- Populating zlib
+!\dots!
+-- Using src='!\myhighlight{yellow}{https://zlib.net/zlib-1.4.tar.gz}!'
+-- [download 1% complete]
+!\dots!
+-- [download 100% complete]
+-- Downloading!\dots! done
+-- Configuring done (14.3s)
+-- Build files have been written to: !\dots!/build
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}[fragile]{Зависимости: \texttt{FetchContent}\footnotemark{}
+  \footnotetext{\url{\cmakehelp/module/FetchContent.html}}}
+
+  \begin{terminalwindow}
+!\shellcommand{cmake --build build}!
+[  5%] Building C object CMakeFiles/calc.dir/calc.c.o
+[ 10%] Linking C static library libcalc.a
+[ 10%] Built target calc
+[ 15%] Building C object !\dots!zlib.dir/adler32.c.o
+!\dots!
+[ 90%] Linking C shared library !\myhighlight{yellow}{libz.so}!
+[ 90%] Built target zlib
+[ 95%] Building C object CMakeFiles/calc_app.dir/main.c.o
+[100%] Linking C executable calc_app
+[100%] Built target calc_app
+!\shellcommand{./build/calc\_app}!
+3 24 -> 19
+!\shellcommand{ldd build/calc\_app}!
+!\dots!
+!\myhighlight{yellow}{libz.so.1}! => !\dots!/_deps/zlib-build/libz.so.1
+  \end{terminalwindow}
+
+\end{frame}
+
 \begin{frame}[fragile]{CTest}
 
   CTest\footnotemark{} --- встроенный в CMake инструмент для запуска
@@ -889,7 +1305,7 @@ cmake_install.cmake
     minted options={breaklines, breakanywhere, linenos,
       escapeinside=||, numbersep=2pt, highlightlines={10,12}}]
     {presentations/02-cmake/src/}
-    {calc/09/CMakeLists.txt}
+    {calc/13/CMakeLists.txt}
 
 \end{frame}
 
@@ -921,7 +1337,7 @@ Total Test time (real) =   0.00 sec
     minted options={breaklines, fontsize=\small, breakanywhere, linenos,
       escapeinside=||, numbersep=2pt, highlightlines={13}}]
     {presentations/02-cmake/src/}
-    {calc/10/CMakeLists.txt}
+    {calc/14/CMakeLists.txt}
 
 \end{frame}
 

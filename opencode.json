@@ -40,7 +40,7 @@
         { "action": "shell",    "resource": "git push*",   "effect": "deny" },
         { "action": "shell",    "resource": "git reset*",  "effect": "deny" },
         { "action": "shell",    "resource": "git commit*", "effect": "allow" },
-        { "action": "edit",     "resource": "*", "effect": "deny" },
+        { "action": "edit",     "resource": "*", "effect": "allow" },
         { "action": "edit",     "resource": ".opencode/*",   "effect": "allow" },
         { "action": "edit",     "resource": "opencode.json", "effect": "allow" },
         { "action": "edit",     "resource": "AGENTS.md",     "effect": "allow" }

@@ -1,0 +1,8 @@
+cmake_minimum_required(VERSION 3.16)
+project(include-demo C)
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+include(my-module)
+include(GNUInstallDirs)
+include(nonexistent-module OPTIONAL)
+message(STATUS "greeting: ${MY_GREETING}")
+message(STATUS "libdir:   ${CMAKE_INSTALL_LIBDIR}")

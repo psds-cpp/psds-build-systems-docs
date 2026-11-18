@@ -1,13 +1,10 @@
 cmake_minimum_required(VERSION 3.16)
 project(calc C)
 
+find_package(ZLIB REQUIRED)
+
 add_library(calc STATIC calc.c)
 target_include_directories(calc PUBLIC .)
 
 add_executable(calc_app main.c)
-target_link_libraries(calc_app PRIVATE calc)
-
-enable_testing()
-
-add_test(NAME smoke COMMAND calc_app)
-add_test(NAME broken COMMAND false)
+target_link_libraries(calc_app PRIVATE calc ZLIB::ZLIB)
