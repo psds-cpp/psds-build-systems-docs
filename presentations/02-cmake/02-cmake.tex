@@ -736,6 +736,59 @@ cc !\myhighlight{yellow}{\dmfl}! -I!\dots!/calc -MD -o CMakeFiles/!\dots! -c cal
 
 \end{frame}
 
+\begin{frame}[fragile]{\texttt{function()} и \texttt{macro()}}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/func-macro-demo/}
+    {CMakeLists.txt}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{macro()}: подстановка текста}
+
+  \begin{columns}[T]
+
+    \begin{column}{0.58\textwidth}
+
+      \myinputlisting[minted language=cmake]
+        {presentations/02-cmake/src/func-macro-demo/macro/}
+        {CMakeLists.txt}
+
+    \end{column}
+
+    \begin{column}{0.38\textwidth}
+
+      \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- name: world
+-- LEAKED = set in macro
+!\dots!
+      \end{terminalwindow}
+
+    \end{column}
+
+  \end{columns}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{function()}: область видимости}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/02-cmake/src/func-macro-demo/function/}
+    {CMakeLists.txt}
+
+  \bigbreak
+
+  \begin{terminalwindow}
+!\shellcommand{cmake -S . -B build}!
+-- name: world, flags: -Wall, rest: -Wextra;-O2
+-- LOCAL  = 
+-- SAID   = said: world
+!\dots!
+  \end{terminalwindow}
+
+\end{frame}
+
 \begin{frame}[fragile]{Этап конфигурации}
 
   \begin{terminalwindow}
