@@ -59,6 +59,11 @@
         pkgs.poppler-utils
         pkgs.graphviz
         pkgs.makefile2graph
+        pkgs.conan
+        pkgs.meson
+        pkgs.ninja
+        pkgs.libcxx
+        pkgs.libcxx.dev
       ];
     };
 

@@ -14,12 +14,13 @@ PDF_TARGETS := $(patsubst presentations/%.tex,%.pdf,$(TEX_SOURCES))
 
 all: build
 
-build: 01-gnu-make.pdf 02-cmake.pdf
+build: 01-gnu-make.pdf 02-cmake.pdf 03-conan.pdf
 
 install: build
 	mkdir -p "$(PREFIX)/presentations"
 	cp "$(BUILD_DIR)/01-gnu-make.pdf" "$(PREFIX)/presentations/01-gnu-make.pdf"
 	cp "$(BUILD_DIR)/02-cmake.pdf" "$(PREFIX)/presentations/02-cmake.pdf"
+	cp "$(BUILD_DIR)/03-conan.pdf" "$(PREFIX)/presentations/03-conan.pdf"
 	$(if $(PDF_TARGETS),cp $(addprefix $(BUILD_DIR)/,$(PDF_TARGETS)) "$(PREFIX)/presentations/")
 
 clean:
@@ -32,6 +33,7 @@ help:
 	@printf "build\tbuild all presentations and homeworks\n"
 	@printf "01-gnu-make.pdf\tbuild presentation 01-gnu-make.pdf\n"
 	@printf "02-cmake.pdf\tbuild presentation 02-cmake.pdf\n"
+	@printf "03-conan.pdf\tbuild presentation 03-conan.pdf\n"
 	@printf "clean\tremove build artifacts\n"
 	@printf "help\tprint this message\n"
 	@printf "install\tinstall all presentations and homeworks\n"
@@ -91,4 +93,35 @@ endef
 	$(wildcard presentations/02-cmake/src/include-demo/*) \
 	$(wildcard presentations/02-cmake/src/include-demo/cmake/*) \
 	$(wildcard presentations/02-cmake/src/cpack-demo/*)
+	$(call generate_pdf,$<,$@)
+
+03-conan.pdf: \
+	presentations/03-conan/03-conan.tex \
+	presentations/presentationtemplate.sty \
+	presentations/images/binary-file.png \
+	presentations/images/source_code.png \
+	presentations/images/prosoft-logo.png \
+	presentations/images/npm-logo.png \
+	presentations/images/pypi-logo.png \
+	presentations/images/cargo-logo.png \
+	presentations/images/nuget-logo.png \
+	presentations/images/maven-logo.png \
+	packages/terminal.sty \
+	packages/mylisting.sty \
+	$(wildcard presentations/03-conan/src/01-basic/*) \
+	$(wildcard presentations/03-conan/src/01-basic/bad/*) \
+	$(wildcard presentations/03-conan/src/01-basic/profiles/*) \
+	$(wildcard presentations/03-conan/src/02-version-range/*) \
+	$(wildcard presentations/03-conan/src/03-tool-requires/*) \
+	$(wildcard presentations/03-conan/src/04-conflict/*) \
+	$(wildcard presentations/03-conan/src/05-hello/*) \
+	$(wildcard presentations/03-conan/src/05-hello/include/hello/*) \
+	$(wildcard presentations/03-conan/src/05-hello/src/*) \
+	$(wildcard presentations/03-conan/src/05-hello/test_package/*) \
+	$(wildcard presentations/03-conan/src/05-hello/test_package/src/*) \
+	$(wildcard presentations/03-conan/src/06-hello-meson/*) \
+	$(wildcard presentations/03-conan/src/06-hello-meson/include/hello/*) \
+	$(wildcard presentations/03-conan/src/06-hello-meson/src/*) \
+	$(wildcard presentations/03-conan/src/07-consumer/*) \
+	$(wildcard presentations/03-conan/src/07-consumer/profiles/*)
 	$(call generate_pdf,$<,$@)
