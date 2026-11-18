@@ -1,2 +1,4 @@
+include(buildenv)
+
 [conf]
 tools.build:jobs=2

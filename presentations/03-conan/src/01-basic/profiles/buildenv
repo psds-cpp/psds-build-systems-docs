@@ -8,3 +8,4 @@ build_type=Release
 
 [buildenv]
 CXXFLAGS+=-march=native
+zlib/*:CXXFLAGS+=-Wno-format

@@ -5,3 +5,7 @@ compiler=clang
 compiler.version=21
 compiler.libcxx=libc++
 build_type=Release
+
+[buildenv]
+CC=clang
+CXX=clang++
