@@ -55,6 +55,7 @@
       packages = buildInputs ++ [
         pkgs.gcc
         pkgs.cmake
+        pkgs.zlib
         pkgs.poppler-utils
         pkgs.graphviz
         pkgs.makefile2graph
