@@ -1,0 +1,3250 @@
+\documentclass[compress, 8pt, aspectratio=169]{beamer}
+
+\usepackage{presentationtemplate}
+\usepackage[fontsize=\small,linenosfontsize=\tiny,askip=3mm]
+  {mylisting}
+\usepackage[fontsize=\small,askip=3mm]{terminal}
+\usepackage{textcomp}
+\usepackage[autostyle=true]{csquotes}
+
+\usetikzlibrary{calc}
+
+\title{Conan}
+
+\newcommand{\conandoc}{https://docs.conan.io/2}
+
+% Literal "!" inside a terminal: every single "!" toggles the
+% minted escape state, so a literal exclamation mark must be
+% emitted through a macro call inside a proper escape region
+% (write !\excl!); the macro name must not contain "!"
+\newcommand{\excl}{!}
+
+\makeatletter
+\newdimen\cn@FVleftmargin
+\let\cn@FVSetupFont\FV@SetupFont
+\def\FV@SetupFont{%
+  \cn@FVleftmargin=\leftmargin
+  \cn@FVSetupFont
+  \let\leftmargin\cn@FVleftmargin}
+\makeatother
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Пакетные менеджеры}
+
+  Задачи пакетного менеджера:
+
+  \begin{itemize}
+
+    \item выбрать совместимые версии зависимостей (граф);
+
+    \item скачать исходники или готовые бинарники;
+
+    \item повторять сборки (репродуцируемость);
+
+    \item делиться бинарниками между разработчиками и CI.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Известные пакетные менеджеры}
+
+  \begin{center}
+
+    \renewcommand{\arraystretch}{1.5}
+
+    \begin{tabular}{|p{3.4cm}|p{4.6cm}|p{4.4cm}|}
+
+      \hline
+
+      \textbf{Логотип} & \textbf{Пакетный менеджер}
+        & \textbf{Экосистема} \\
+
+      \hline
+
+      \includegraphics[height=0.7cm]
+        {presentations/images/npm-logo.png}
+        & npm & JavaScript/Node.js \\
+
+      \includegraphics[height=0.7cm]
+        {presentations/images/pypi-logo.png}
+        & pip & Python \\
+
+      \includegraphics[height=0.7cm]
+        {presentations/images/cargo-logo.png}
+        & Cargo & Rust \\
+
+      \includegraphics[height=0.7cm]
+        {presentations/images/nuget-logo.png}
+        & NuGet & .NET \\
+
+      \includegraphics[height=0.7cm]
+        {presentations/images/maven-logo.png}
+        & Maven & Java \\
+
+      \hline
+
+    \end{tabular}
+
+  \end{center}
+
+  \bigbreak
+
+  Для C/C++ стандартного \enquote{из коробки} менеджера не было.
+
+\end{frame}
+
+\begin{frame}{О Conan}
+
+  \begin{itemize}
+
+    \item открытый пакетный менеджер C/C++, лицензия MIT;
+
+    \item один из основных C/C++-менеджеров наряду с vcpkg
+      (Microsoft); промышленные C/C++-проекты и CI;
+
+    \item 3.6 млн загрузок с PyPI в месяц;
+      кейсы\footnotemark{}\footnotetext{\url{https://conan.io/}}:
+      TomTom, Mercedes-Benz, Plex, Keysight, \dots;
+
+    \item проект появился в 2015 г., активно развивается в
+      JFrog\footnotemark{}\footnotetext{\url{https://github.com/conan-io/conan}};
+
+    \item Conan 2.0\footnotemark{}%
+      \footnotetext{\url{\conandoc/knowledge/whatsnew.html}} (февраль 2023):
+      мульти-ревизийный кэш, lockfiles, conf, deployers,
+      новый package\_id;
+
+    \item децентрализованный: свои рецепты и бинарники в своём кэше
+      и на своём сервере; Conancenter --- публичный репозиторий.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Ресурсы}
+
+  \begin{itemize}
+
+    \item Tutorial\footnotemark{}\footnotetext{\url{\conandoc/tutorial.html}};
+
+    \item Reference\footnotemark{}\footnotetext{\url{\conandoc/reference.html}};
+
+    \item Conancenter\footnotemark{}\footnotetext{\url{https://conan.io/center}}
+      (~2000 рецептов, более 10000 версий, данные на 11/2026);
+
+    \item GitHub\footnotemark{}\footnotetext{\url{https://github.com/conan-io/conan}}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Базовые понятия}
+
+  \begin{center}
+
+    \begin{tikzpicture}[
+      box/.style={draw, thick, align=center, inner sep=4pt,
+        font=\footnotesize},
+      arr/.style={->, thick}
+    ]
+
+      \node[box] (consumer) at (1.7,0.5)
+        {Потребитель: \\
+         \texttt{conanfile.txt}/py \\
+         (зависимости, генераторы)};
+
+      \node[box] (conan) at (7.95,0.5)
+        {Conan: граф \\
+         зависимостей + \\
+         профили (settings, \\
+         options, conf)};
+
+      \node[box] (recipes) at (11.65,2.4)
+        {Рецепты: Conancenter или \\
+         свой сервер (\texttt{conanfile.py} \\
+         + исходники + метаданные, ревизии)};
+
+      \node[box] (cache) at (11.65,-1.5)
+        {Локальный кэш \texttt{\textasciitilde/.conan2}: \\
+         готовые бинарники, \\
+         package\_id на каждый профиль};
+
+      \draw[arr] (consumer.east) --
+        node[above, font=\footnotesize]
+        {\texttt{conan install / create}} (conan.west);
+
+      \draw[arr] (conan.north)
+        -- node[pos=0.5, above, font=\footnotesize] {рецепт}
+        (recipes.west);
+
+      \draw[arr] (conan.south)
+        -- node[pos=0.5, below, font=\footnotesize] {бинарник}
+        (cache.west);
+
+      \draw[arr] (conan.south) --
+        node[pos=0.5, below, align=center, font=\footnotesize]
+        {сгенерированные файлы \\
+         (\texttt{CMakeDeps}, \texttt{CMakeToolchain}) \\
+         и окружение (\texttt{conanbuild.sh})}
+        (consumer.south);
+
+    \end{tikzpicture}
+
+  \end{center}
+
+\end{frame}
+
+\begin{frame}[fragile]{conanfile.txt\footnotemark{}}
+
+  \myinputlisting[minted language=ini]
+    {presentations/03-conan/src/}
+    {01-basic/conanfile.txt}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{[requires]} --- что нужно проекту;
+
+    \item \texttt{[generators]} --- что сгенерировать под
+      сборочную систему;
+
+    \item \texttt{[layout]} --- куда раскладывать сгенерированные
+      файлы.
+
+  \end{itemize}
+
+  \footnotetext{\url{\conandoc/reference/conanfile_txt.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan install}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=20}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . --build=missing}!
+======== Input profiles ========
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.cppstd=gnu17
+compiler.libcxx=libstdc++11
+compiler.version=15
+os=Linux
+
+Profile build:
+[settings]
+!\dots!
+======== Computing dependency graph ========
+zlib/1.3.1: Not found in local cache, looking in remotes!\dots!
+zlib/1.3.1: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+zlib/1.3.1: Downloaded recipe revision cac0f6!\dots!
+Graph root
+    conanfile.txt: !\dots!/01-basic/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Downloaded (conancenter)
+
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625 - Build
+
+======== Installing packages ========
+zlib/1.3.1: Building from source
+zlib/1.3.1: settings: os=Linux arch=x86_64 compiler=gcc compiler.version=15 build_type=Release
+zlib/1.3.1: options: fPIC=True shared=False
+!\dots!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+[ 93%] Building C object CMakeFiles/zlib.dir/zutil.c.o
+[100%] Linking C static library libz.a
+[100%] Built target zlib
+!\dots!
+zlib/1.3.1: package(): Packaged 2 '.h' files: zlib.h, zconf.h
+zlib/1.3.1: package(): Packaged 1 '.a' file: libz.a
+zlib/1.3.1: package(): Packaged 1 file: LICENSE
+zlib/1.3.1: Created package revision b6c21644!\dots!
+zlib/1.3.1: Package '5172!\dots!6625' created
+
+======== Finalizing install (deploy, generators) ========
+!\dots!
+conanfile.txt: CMakeDeps necessary find_package() and targets for your CMakeLists.txt
+    find_package(ZLIB)
+    target_link_libraries(!\dots! ZLIB::ZLIB)
+!\dots!
+Install finished successfully
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan install}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=21, lastline=40}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . --build=missing}!
+======== Input profiles ========
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.cppstd=gnu17
+compiler.libcxx=libstdc++11
+compiler.version=15
+os=Linux
+
+Profile build:
+[settings]
+!\dots!
+======== Computing dependency graph ========
+zlib/1.3.1: Not found in local cache, looking in remotes!\dots!
+zlib/1.3.1: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+zlib/1.3.1: Downloaded recipe revision cac0f6!\dots!
+Graph root
+    conanfile.txt: !\dots!/01-basic/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Downloaded (conancenter)
+
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625 - Build
+
+======== Installing packages ========
+zlib/1.3.1: Building from source
+zlib/1.3.1: settings: os=Linux arch=x86_64 compiler=gcc compiler.version=15 build_type=Release
+zlib/1.3.1: options: fPIC=True shared=False
+!\dots!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+[ 93%] Building C object CMakeFiles/zlib.dir/zutil.c.o
+[100%] Linking C static library libz.a
+[100%] Built target zlib
+!\dots!
+zlib/1.3.1: package(): Packaged 2 '.h' files: zlib.h, zconf.h
+zlib/1.3.1: package(): Packaged 1 '.a' file: libz.a
+zlib/1.3.1: package(): Packaged 1 file: LICENSE
+zlib/1.3.1: Created package revision b6c21644!\dots!
+zlib/1.3.1: Package '5172!\dots!6625' created
+
+======== Finalizing install (deploy, generators) ========
+!\dots!
+conanfile.txt: CMakeDeps necessary find_package() and targets for your CMakeLists.txt
+    find_package(ZLIB)
+    target_link_libraries(!\dots! ZLIB::ZLIB)
+!\dots!
+Install finished successfully
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan install}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=41}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . --build=missing}!
+======== Input profiles ========
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.cppstd=gnu17
+compiler.libcxx=libstdc++11
+compiler.version=15
+os=Linux
+
+Profile build:
+[settings]
+!\dots!
+======== Computing dependency graph ========
+zlib/1.3.1: Not found in local cache, looking in remotes!\dots!
+zlib/1.3.1: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+zlib/1.3.1: Downloaded recipe revision cac0f6!\dots!
+Graph root
+    conanfile.txt: !\dots!/01-basic/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Downloaded (conancenter)
+
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625 - Build
+
+======== Installing packages ========
+zlib/1.3.1: Building from source
+zlib/1.3.1: settings: os=Linux arch=x86_64 compiler=gcc compiler.version=15 build_type=Release
+zlib/1.3.1: options: fPIC=True shared=False
+!\dots!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+[ 93%] Building C object CMakeFiles/zlib.dir/zutil.c.o
+[100%] Linking C static library libz.a
+[100%] Built target zlib
+!\dots!
+zlib/1.3.1: package(): Packaged 2 '.h' files: zlib.h, zconf.h
+zlib/1.3.1: package(): Packaged 1 '.a' file: libz.a
+zlib/1.3.1: package(): Packaged 1 file: LICENSE
+zlib/1.3.1: Created package revision b6c21644!\dots!
+zlib/1.3.1: Package '5172!\dots!6625' created
+
+======== Finalizing install (deploy, generators) ========
+!\dots!
+conanfile.txt: CMakeDeps necessary find_package() and targets for your CMakeLists.txt
+    find_package(ZLIB)
+    target_link_libraries(!\dots! ZLIB::ZLIB)
+!\dots!
+Install finished successfully
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item холодный кэш: рецепт скачан с Conancenter, готового
+      бинарника под gcc 15 нет --- Conan собрал zlib из исходников
+      (\textasciitilde{}8 с);
+
+    \item \texttt{--build=missing} --- собирать из исходников
+      только то, чего нет в кэше и на remote; по умолчанию ---
+      только готовые бинарники.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Откуда приходят зависимости}
+
+  \begin{itemize}
+
+    \item Conancenter\footnotemark{}\footnotetext{\url{https://conan.io/center}}:
+      публичный репозиторий рецептов\footnotemark{}%
+      \footnotetext{\url{https://github.com/conan-io/conan-center-index}}
+      и готовых бинарников (сборки под основные платформы/профили);
+
+    \item рецепт\footnotemark{}\footnotetext{\url{https://conan.io/center/recipes/zlib}}
+      --- это \texttt{conanfile.py} + метаданные, у рецепта есть ревизии
+      (меняется, когда меняется рецепт);
+
+    \item бинарники хранятся в локальном кэше
+      \texttt{\textasciitilde/.conan2}, каждый с package\_id,
+      зависящим от профиля;
+
+    \item можно поднять свой сервер (Artifactory CE и др.) ---
+      слайд 43.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Версионные диапазоны}
+
+  \myinputlisting[minted language=ini]
+    {presentations/03-conan/src/}
+    {02-version-range/conanfile.txt}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=15}]
+!\shellcommand{cd src/02-version-range}!
+!\shellcommand{conan graph info .}!
+!\dots!
+======== Computing dependency graph ========
+Graph root
+    conanfile.txt: !\dots!/02-version-range/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Cache
+Resolved version ranges
+    zlib/[>=1.2.11 <2]: zlib/1.3.1
+
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625#b6c2!\dots! - Cache
+
+-------- Basic graph information --------
+!\dots!
+!\shellcommand{conan graph info . --update}!
+!\dots!
+Connecting to remote 'conancenter' anonymously
+zlib/1.4: Not found in local cache, looking in remotes!\dots!
+zlib/1.4: Checking remote: conancenter
+zlib/1.4: Downloaded recipe revision f51abf!\dots!
+Graph root
+    conanfile.txt: !\dots!/02-version-range/conanfile.txt
+Requirements
+    zlib/1.4#f51abf!\dots! - Downloaded (conancenter)
+Resolved version ranges
+    zlib/[>=1.2.11 <2]: zlib/1.4
+!\dots!
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Версионные диапазоны}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=16, lastline=28}]
+!\shellcommand{cd src/02-version-range}!
+!\shellcommand{conan graph info .}!
+!\dots!
+======== Computing dependency graph ========
+Graph root
+    conanfile.txt: !\dots!/02-version-range/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Cache
+Resolved version ranges
+    zlib/[>=1.2.11 <2]: zlib/1.3.1
+
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625#b6c2!\dots! - Cache
+
+-------- Basic graph information --------
+!\dots!
+!\shellcommand{conan graph info . --update}!
+!\dots!
+Connecting to remote 'conancenter' anonymously
+zlib/1.4: Not found in local cache, looking in remotes!\dots!
+zlib/1.4: Checking remote: conancenter
+zlib/1.4: Downloaded recipe revision f51abf!\dots!
+Graph root
+    conanfile.txt: !\dots!/02-version-range/conanfile.txt
+Requirements
+    zlib/1.4#f51abf!\dots! - Downloaded (conancenter)
+Resolved version ranges
+    zlib/[>=1.2.11 <2]: zlib/1.4
+!\dots!
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Версионные диапазоны}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=29}]
+!\shellcommand{cd src/02-version-range}!
+!\shellcommand{conan graph info .}!
+!\dots!
+======== Computing dependency graph ========
+Graph root
+    conanfile.txt: !\dots!/02-version-range/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Cache
+Resolved version ranges
+    zlib/[>=1.2.11 <2]: zlib/1.3.1
+
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625#b6c2!\dots! - Cache
+
+-------- Basic graph information --------
+!\dots!
+!\shellcommand{conan graph info . --update}!
+!\dots!
+Connecting to remote 'conancenter' anonymously
+zlib/1.4: Not found in local cache, looking in remotes!\dots!
+zlib/1.4: Checking remote: conancenter
+zlib/1.4: Downloaded recipe revision f51abf!\dots!
+Graph root
+    conanfile.txt: !\dots!/02-version-range/conanfile.txt
+Requirements
+    zlib/1.4#f51abf!\dots! - Downloaded (conancenter)
+Resolved version ranges
+    zlib/[>=1.2.11 <2]: zlib/1.4
+!\dots!
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item диапазон разрешается в максимальную доступную версию;
+
+    \item по умолчанию разрешение идёт по локальному кэшу (remote
+      не опрашивается --- \enquote{Cache} без строки
+      \enquote{Connecting to remote});
+
+    \item с \texttt{--update} проверяется remote: в conancenter на
+      18.11.2026 последняя 1.4 --- она и выбрана;
+
+    \item конкретная версия фиксируется в графе и lockfile
+      (слайд 42).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{[tool\_requires] и [test\_requires]\footnotemark{}}
+
+  \myinputlisting[minted language=ini]
+    {presentations/03-conan/src/}
+    {03-tool-requires/conanfile.txt}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{[requires]} --- хост-зависимости (линкуются в
+      продукт);
+
+    \item \texttt{[tool\_requires]} --- инструменты для сборки
+      (build-контекст), в продукт не линкуются;
+
+    \item \texttt{[test\_requires]} --- зависимости для тестов
+      (используются в \texttt{test\_package}, слайд 39).
+
+  \end{itemize}
+
+  \footnotetext{\url{\conandoc/reference/conanfile/attributes.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{Граф и контексты}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=17}]
+!\shellcommand{cd src/03-tool-requires}!
+!\shellcommand{conan graph info .}!
+!\dots!
+zstd/1.5.7: Not found in local cache, looking in remotes!\dots!
+zstd/1.5.7: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+zstd/1.5.7: Downloaded recipe revision b68ca8!\dots!
+cmake/4.5.0: Not found in local cache, looking in remotes!\dots!
+cmake/4.5.0: Checking remote: conancenter
+cmake/4.5.0: Downloaded recipe revision 24bd34!\dots!
+gtest/1.18.0: Not found in local cache, looking in remotes!\dots!
+gtest/1.18.0: Checking remote: conancenter
+gtest/1.18.0: Downloaded recipe revision e2507f!\dots!
+Graph root
+    conanfile.txt: !\dots!/03-tool-requires/conanfile.txt
+Requirements
+    zstd/1.5.7#b68ca8!\dots! - Downloaded (conancenter)
+Test requirements
+    gtest/1.18.0#e2507f!\dots! - Downloaded (conancenter)
+Build requirements
+    cmake/4.5.0#24bd34!\dots! - Downloaded (conancenter)
+Resolved version ranges
+    cmake/[>=3.16]: cmake/4.5.0
+
+======== Computing necessary packages ========
+Requirements
+    zstd/1.5.7#b68ca8!\dots!:bf9a53!\dots! - Missing
+Test requirements
+    gtest/1.18.0#e2507f!\dots!:75d8f4!\dots! - Missing
+Build requirements
+    cmake/4.5.0#24bd34!\dots!:63fead!\dots!#8cf086!\dots! - Download (conancenter)
+
+-------- Basic graph information --------
+!\dots!
+WARN: There are some error(s) in the graph:
+    - Missing packages: gtest, zstd
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Граф и контексты}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=18, lastline=32}]
+!\shellcommand{cd src/03-tool-requires}!
+!\shellcommand{conan graph info .}!
+!\dots!
+zstd/1.5.7: Not found in local cache, looking in remotes!\dots!
+zstd/1.5.7: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+zstd/1.5.7: Downloaded recipe revision b68ca8!\dots!
+cmake/4.5.0: Not found in local cache, looking in remotes!\dots!
+cmake/4.5.0: Checking remote: conancenter
+cmake/4.5.0: Downloaded recipe revision 24bd34!\dots!
+gtest/1.18.0: Not found in local cache, looking in remotes!\dots!
+gtest/1.18.0: Checking remote: conancenter
+gtest/1.18.0: Downloaded recipe revision e2507f!\dots!
+Graph root
+    conanfile.txt: !\dots!/03-tool-requires/conanfile.txt
+Requirements
+    zstd/1.5.7#b68ca8!\dots! - Downloaded (conancenter)
+Test requirements
+    gtest/1.18.0#e2507f!\dots! - Downloaded (conancenter)
+Build requirements
+    cmake/4.5.0#24bd34!\dots! - Downloaded (conancenter)
+Resolved version ranges
+    cmake/[>=3.16]: cmake/4.5.0
+
+======== Computing necessary packages ========
+Requirements
+    zstd/1.5.7#b68ca8!\dots!:bf9a53!\dots! - Missing
+Test requirements
+    gtest/1.18.0#e2507f!\dots!:75d8f4!\dots! - Missing
+Build requirements
+    cmake/4.5.0#24bd34!\dots!:63fead!\dots!#8cf086!\dots! - Download (conancenter)
+
+-------- Basic graph information --------
+!\dots!
+WARN: There are some error(s) in the graph:
+    - Missing packages: gtest, zstd
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Граф и контексты}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=33}]
+!\shellcommand{cd src/03-tool-requires}!
+!\shellcommand{conan graph info .}!
+!\dots!
+zstd/1.5.7: Not found in local cache, looking in remotes!\dots!
+zstd/1.5.7: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+zstd/1.5.7: Downloaded recipe revision b68ca8!\dots!
+cmake/4.5.0: Not found in local cache, looking in remotes!\dots!
+cmake/4.5.0: Checking remote: conancenter
+cmake/4.5.0: Downloaded recipe revision 24bd34!\dots!
+gtest/1.18.0: Not found in local cache, looking in remotes!\dots!
+gtest/1.18.0: Checking remote: conancenter
+gtest/1.18.0: Downloaded recipe revision e2507f!\dots!
+Graph root
+    conanfile.txt: !\dots!/03-tool-requires/conanfile.txt
+Requirements
+    zstd/1.5.7#b68ca8!\dots! - Downloaded (conancenter)
+Test requirements
+    gtest/1.18.0#e2507f!\dots! - Downloaded (conancenter)
+Build requirements
+    cmake/4.5.0#24bd34!\dots! - Downloaded (conancenter)
+Resolved version ranges
+    cmake/[>=3.16]: cmake/4.5.0
+
+======== Computing necessary packages ========
+Requirements
+    zstd/1.5.7#b68ca8!\dots!:bf9a53!\dots! - Missing
+Test requirements
+    gtest/1.18.0#e2507f!\dots!:75d8f4!\dots! - Missing
+Build requirements
+    cmake/4.5.0#24bd34!\dots!:63fead!\dots!#8cf086!\dots! - Download (conancenter)
+
+-------- Basic graph information --------
+!\dots!
+WARN: There are some error(s) in the graph:
+    - Missing packages: gtest, zstd
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item у графа три раздела: Requirements (host), Build
+      requirements (build), Test requirements (test);
+
+    \item host/build-контексты могут иметь разные профили: при
+      кросс-сборке они различаются по архитектуре (слайды 18-19);
+
+    \item единственный диапазон в графе, \texttt{cmake/[>=3.16]},
+      объявлен в рецепте gtest (не в нашем \texttt{conanfile.txt})
+      --- версии разрешаются по всему графу;
+
+    \item Missing --- бинарника нет в кэше (gtest, zstd); готовый
+      бинарник cmake скачан с Conancenter (Download).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Конфликт в графе}
+
+  \myinputlisting[minted language=ini]
+    {presentations/03-conan/src/}
+    {04-conflict/conanfile.txt}
+
+  \bigbreak
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=12}]
+!\shellcommand{cd src/04-conflict}!
+!\shellcommand{conan install .}!
+!\dots!
+spdlog/1.14.1: Not found in local cache, looking in remotes!\dots!
+spdlog/1.14.1: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+spdlog/1.14.1: Downloaded recipe revision 0c58e5!\dots!
+Graph root
+    conanfile.txt: !\dots!/04-conflict/conanfile.txt
+Requirements
+    spdlog/1.14.1#0c58e5!\dots! - Downloaded (conancenter)
+ERROR: Version conflict: Conflict between fmt/10.2.1 and fmt/11.2.0 in the graph.
+Conflict originates from spdlog/1.14.1
+
+Run 'conan graph info !\dots! --format=html > graph.html' and open 'graph.html' to inspect the conflict graphically.
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Конфликт в графе}
+
+  \textit{\dots continued}
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=13}]
+!\shellcommand{cd src/04-conflict}!
+!\shellcommand{conan install .}!
+!\dots!
+spdlog/1.14.1: Not found in local cache, looking in remotes!\dots!
+spdlog/1.14.1: Checking remote: conancenter
+Connecting to remote 'conancenter' anonymously
+spdlog/1.14.1: Downloaded recipe revision 0c58e5!\dots!
+Graph root
+    conanfile.txt: !\dots!/04-conflict/conanfile.txt
+Requirements
+    spdlog/1.14.1#0c58e5!\dots! - Downloaded (conancenter)
+ERROR: Version conflict: Conflict between fmt/10.2.1 and fmt/11.2.0 in the graph.
+Conflict originates from spdlog/1.14.1
+
+Run 'conan graph info !\dots! --format=html > graph.html' and open 'graph.html' to inspect the conflict graphically.
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item рецепт \texttt{spdlog/1.14.1} в Conancenter требует
+      \texttt{fmt/10.2.1}, а наш \texttt{conanfile} ---
+      \texttt{fmt/11.2.0}: жёсткие версии несовместимы;
+
+    \item Conan не \enquote{угадывает} версию: конфликт виден
+      сразу, до сборки;
+
+    \item ошибка называет виновника (\enquote{Conflict originates
+      from spdlog/1.14.1}) и подсказывает посмотреть граф в HTML.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Граф: html и explain}
+
+  \begin{terminalwindow}
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan graph info . --format=html > /tmp/graph.html}!
+!\dots!
+======== Computing dependency graph ========
+Graph root
+    conanfile.txt: !\dots!/01-basic/conanfile.txt
+Requirements
+    zlib/1.3.1#cac0f6!\dots! - Cache
+!\dots!
+!\shellcommand{ls -l /tmp/graph.html}!
+-rw-r--r-- 1 czert users 30129 ноя 18 01:21 /tmp/graph.html
+  \end{terminalwindow}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item форматы графа: \texttt{html}, \texttt{json}, \texttt{dot};
+
+    \item \texttt{--format=html} пишет HTML в stdout (поэтому
+      \texttt{> graph.html});
+
+    \item \texttt{conan graph explain .}\footnotemark{} объясняет,
+      почему бинарник не найден: ближайший доступный бинарник и
+      чем он отличается (слайд 37).
+
+  \end{itemize}
+
+  \footnotetext{\url{\conandoc/reference/commands/graph.html}}
+
+\end{frame}
+
+\begin{frame}[fragile]{Сгенерированные файлы}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=14}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{ls build/Release/generators/}!
+cmakedeps_macros.cmake
+CMakePresets.json
+conanbuildenv-release-x86_64.sh
+conanbuild.sh
+conandeps_legacy.cmake
+conanrunenv-release-x86_64.sh
+conanrun.sh
+conan_toolchain.cmake
+deactivate_conanbuildenv-release-x86_64.sh
+deactivate_conanbuild.sh
+deactivate_conanrun.sh
+FindZLIB.cmake
+module-ZLIB-release-x86_64-data.cmake
+module-ZLIB-Target-release.cmake
+module-ZLIBTargets.cmake
+ZLIBConfig.cmake
+ZLIBConfigVersion.cmake
+ZLIB-release-x86_64-data.cmake
+ZLIB-Target-release.cmake
+ZLIBTargets.cmake
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Сгенерированные файлы}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=15}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{ls build/Release/generators/}!
+cmakedeps_macros.cmake
+CMakePresets.json
+conanbuildenv-release-x86_64.sh
+conanbuild.sh
+conandeps_legacy.cmake
+conanrunenv-release-x86_64.sh
+conanrun.sh
+conan_toolchain.cmake
+deactivate_conanbuildenv-release-x86_64.sh
+deactivate_conanbuild.sh
+deactivate_conanrun.sh
+FindZLIB.cmake
+module-ZLIB-release-x86_64-data.cmake
+module-ZLIB-Target-release.cmake
+module-ZLIBTargets.cmake
+ZLIBConfig.cmake
+ZLIBConfigVersion.cmake
+ZLIB-release-x86_64-data.cmake
+ZLIB-Target-release.cmake
+ZLIBTargets.cmake
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  (\texttt{[layout]} \texttt{cmake\_layout} кладёт сгенерированные
+  файлы в \texttt{build/Release/generators/}, а не в корень
+  проекта.)
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item CMakeDeps\footnotemark{}%
+      \footnotetext{\url{\conandoc/reference/tools/cmake/cmakedeps.html}}:
+      find\_package-файлы зависимостей (\texttt{ZLIBConfig.cmake},
+      \texttt{FindZLIB.cmake}, \dots); имя \enquote{ZLIB} --- из
+      рецепта zlib (\texttt{cmake\_file\_name=ZLIB},
+      \texttt{cmake\_find\_mode=both});
+
+    \item CMakeToolchain\footnotemark{}%
+      \footnotetext{\url{\conandoc/reference/tools/cmake/cmaketoolchain.html}}:
+      \texttt{conan\_toolchain.cmake} + \texttt{CMakePresets.json}
+      (schema 3, пресет \texttt{conan-release});
+
+    \item \texttt{conanbuild.sh} / \texttt{conanrun.sh} ---
+      агрегирующие скрипты окружения сборки/запуска (активируются
+      через \texttt{source}, слайд 22).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Профили: дефолтный и свой}
+
+  \begin{columns}[T]
+
+    \column{0.48\textwidth}
+
+    \begin{terminalwindow}
+!\shellcommand{conan profile show}!
+Host profile:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.cppstd=gnu17
+compiler.libcxx=libstdc++11
+compiler.version=15
+os=Linux
+
+Build profile:
+[settings]
+!\dots!
+    \end{terminalwindow}
+
+    \column{0.48\textwidth}
+
+    \myinputlisting[minted language=ini]
+      {presentations/03-conan/src/}
+      {01-basic/profiles/clang}
+
+    \bigbreak
+
+    (compiler.version=21 --- фактическая версия Clang на
+    демо-машине; settings Conan 2.28.1 поддерживает clang до 22.)
+
+  \end{columns}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item профиль\footnotemark{}\footnotetext{\url{\conandoc/reference/config_files/profiles.html}}
+      --- именованный набор \texttt{settings}/\texttt{options}/
+      \texttt{conf};
+
+    \item хранится в \texttt{\textasciitilde/.conan2/profiles/},
+      дефолтный создаётся командой \texttt{conan profile detect};
+
+    \item свой профиль --- просто файл: можно хранить в репозитории
+      проекта (профили проекта лежат в \texttt{src/01-basic/profiles/}).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Профиль в деле}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=15}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . -pr ./profiles/clang --build=missing}!
+!\dots!
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+!\dots!
+======== Computing necessary packages ========
+Connecting to remote 'conancenter' anonymously
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:1cb0d13b!\dots! - Build
+
+======== Installing packages ========
+zlib/1.3.1: Building from source
+zlib/1.3.1: settings: os=Linux arch=x86_64 compiler=clang compiler.version=21 build_type=Release
+zlib/1.3.1: options: fPIC=True shared=False
+!\dots!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+zlib/1.3.1: Created package revision 3b0d7ec4!\dots!
+zlib/1.3.1: Package '1cb0d13b!\dots!' created
+Install finished successfully
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Профиль в деле}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=16}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . -pr ./profiles/clang --build=missing}!
+!\dots!
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+!\dots!
+======== Computing necessary packages ========
+Connecting to remote 'conancenter' anonymously
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:1cb0d13b!\dots! - Build
+
+======== Installing packages ========
+zlib/1.3.1: Building from source
+zlib/1.3.1: settings: os=Linux arch=x86_64 compiler=clang compiler.version=21 build_type=Release
+zlib/1.3.1: options: fPIC=True shared=False
+!\dots!
+-- The C compiler identification is GNU 15.3.0
+!\dots!
+zlib/1.3.1: Created package revision 3b0d7ec4!\dots!
+zlib/1.3.1: Package '1cb0d13b!\dots!' created
+Install finished successfully
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item профиль передаётся через \texttt{-pr} (относительный путь);
+
+    \item другой профиль = другой \texttt{package\_id}
+      (\texttt{1cb0d13b\dots} против \texttt{5172\dots6625} со
+      слайда 8) = другой бинарник: в кэше сосуществуют сборки под
+      разными компиляторами;
+
+    \item компилятор в выводе --- GNU 15.3.0, НЕ clang: в профиле
+      только \texttt{[settings]}, а CMakeToolchain не записывает
+      компилятор из settings --- CMake взял компилятор по умолчанию
+      из PATH. Чтобы реально собрать clang'ом, в профиле нужны
+      \texttt{[buildenv]} \texttt{CC=clang} \texttt{CXX=clang++}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Кросс-профиль}
+
+  \myinputlisting[minted language=ini]
+    {presentations/03-conan/src/}
+    {01-basic/profiles/aarch64}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item кросс-сборка: целевая платформа (host) отличается от
+      машины сборки (build);
+
+    \item Conan 2 разделяет профили: \texttt{-pr:h} (host) и
+      \texttt{-pr:b} (build);
+
+    \item \texttt{[buildenv]} задаёт \texttt{CC}/\texttt{CXX} для
+      кросс-компилятора (если тулчейн установлен); в демо
+      aarch64-тулчейна нет --- реальная кросс-сборка не
+      показывается.
+
+  \end{itemize}
+
+  \bigbreak
+
+  Примечание: \texttt{compiler.version=14} --- версия
+  гипотетического aarch64-тулчейна (не машины сборки).
+
+\end{frame}
+
+\begin{frame}[fragile]{Кросс: граф}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=12}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan graph info . -pr:h ./profiles/aarch64 -pr:b default}!
+!\dots!
+Profile host:
+[settings]
+arch=armv8
+build_type=Release
+compiler=gcc
+compiler.libcxx=libstdc++11
+compiler.version=14
+os=Linux
+[buildenv]
+CC=aarch64-linux-gnu-gcc
+CXX=aarch64-linux-gnu-g++
+!\dots!
+======== Computing necessary packages ========
+Connecting to remote 'conancenter' anonymously
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5b209366!\dots! - Missing
+
+-------- Basic graph information --------
+!\dots!
+WARN: There are some error(s) in the graph:
+    - Missing packages: zlib
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Кросс: граф}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=13}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan graph info . -pr:h ./profiles/aarch64 -pr:b default}!
+!\dots!
+Profile host:
+[settings]
+arch=armv8
+build_type=Release
+compiler=gcc
+compiler.libcxx=libstdc++11
+compiler.version=14
+os=Linux
+[buildenv]
+CC=aarch64-linux-gnu-gcc
+CXX=aarch64-linux-gnu-g++
+!\dots!
+======== Computing necessary packages ========
+Connecting to remote 'conancenter' anonymously
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5b209366!\dots! - Missing
+
+-------- Basic graph information --------
+!\dots!
+WARN: There are some error(s) in the graph:
+    - Missing packages: zlib
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item граф и \texttt{package\_id} под \texttt{armv8}
+      (\texttt{5b209366\dots}) рассчитываются без тулчейна ---
+      бинарника в кэше и на Conancenter нет (Missing);
+
+    \item с \texttt{--build=missing} здесь же началась бы
+      кросс-сборка zlib aarch64-компилятором (в демо тулчейна нет ---
+      не запускаем).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{CMake, который писать не надо}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/03-conan/src/}
+    {01-basic/bad/CMakeLists.txt}
+
+  \bigbreak
+
+  \myinputlisting[minted language=c++]
+    {presentations/03-conan/src/}
+    {01-basic/bad/main.cpp}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item зашитый компилятор и флаги ломают смену
+      профиля/компилятора;
+
+    \item правильные флаги --- из toolchain-файла, который
+      генерирует Conan (CMakeToolchain, слайды 15 и 24).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{[buildenv]} и \texttt{[conf]}}
+
+  \begin{columns}[T]
+
+    \column{0.48\textwidth}
+
+    \myinputlisting[minted language=ini]
+      {presentations/03-conan/src/}
+      {01-basic/profiles/buildenv}
+
+    \column{0.48\textwidth}
+
+    \myinputlisting[minted language=ini]
+      {presentations/03-conan/src/}
+      {01-basic/profiles/jobs2}
+
+    \bigbreak
+
+    (Профиль только с \texttt{[conf]} как единственный НЕ работает:
+    ошибка \enquote{settings.os' value not defined}; рабочий вариант
+    --- \texttt{conan install . -pr default -pr
+    ./profiles/jobs2}: профили сливаются в порядке указания,
+    \texttt{default} даёт \texttt{[settings]}.)
+
+  \end{columns}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{[buildenv]} --- переменные окружения для шага
+      сборки (\texttt{make}/\texttt{ninja} видят их напрямую;
+      оператор \texttt{+=} добавляет к уже заданному);
+
+    \item \texttt{[conf]}\footnotemark{}%
+      \footnotetext{\url{\conandoc/reference/config_files/global_conf.html}}
+      --- конфигурация для генераторов: \texttt{CMakeToolchain} и
+      \texttt{MesonToolchain} читают \texttt{tools.build:jobs},
+      \texttt{tools.build:cxxflags} и др.;
+
+    \item для CMake флаги надёжнее давать через \texttt{[conf]}:
+      \texttt{\$CXXFLAGS} читается CMake только при первой
+      инициализации кэша.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Окружение из профиля}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=15}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . -pr ./profiles/buildenv --build=missing}!
+!\dots!
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.version=15
+compiler.libcxx=libstdc++11
+os=Linux
+[buildenv]
+CXXFLAGS+=-march=native
+!\dots!
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625#b6c2!\dots! - Cache
+!\dots!
+zlib/1.3.1: Already installed!\excl! (1 of 1)
+Install finished successfully
+!\shellcommand{source build/Release/generators/conanbuild.sh}!
+!\shellcommand{echo "CXXFLAGS=[\$CXXFLAGS]"}!
+CXXFLAGS=[-march=native]
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Окружение из профиля}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=16}]
+!\shellcommand{cd src/01-basic}!
+!\shellcommand{conan install . -pr ./profiles/buildenv --build=missing}!
+!\dots!
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=gcc
+compiler.version=15
+compiler.libcxx=libstdc++11
+os=Linux
+[buildenv]
+CXXFLAGS+=-march=native
+!\dots!
+======== Computing necessary packages ========
+Requirements
+    zlib/1.3.1#cac0f6!\dots!:5172!\dots!6625#b6c2!\dots! - Cache
+!\dots!
+zlib/1.3.1: Already installed!\excl! (1 of 1)
+Install finished successfully
+!\shellcommand{source build/Release/generators/conanbuild.sh}!
+!\shellcommand{echo "CXXFLAGS=[\$CXXFLAGS]"}!
+CXXFLAGS=[-march=native]
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{conanbuild.sh} --- агрегирующий скрипт
+      \texttt{[buildenv]} (контекст build); \texttt{conanrun.sh}
+      --- \texttt{[runenv]} для запуска;
+
+    \item \texttt{source deactivate\_conanbuild.sh} откатывает
+      переменные;
+
+    \item CMake читает \texttt{\$CXXFLAGS} только при первой
+      инициализации кэша (C++-проекты; C --- \texttt{\$CFLAGS}):
+      для повторяемых сборок флаги надёжнее давать через
+      \texttt{[conf]} (\texttt{tools.build:cxxflags}) ---
+      CMakeToolchain положит их в \texttt{CMAKE\_CXX\_FLAGS\_INIT}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Первый conanfile.py}
+
+  \begin{columns}[T]
+
+    \column{0.48\textwidth}
+
+    % Фрагмент ступени 1 из src/05-hello/conanfile.py (файл в src/
+    % в итоговом состоянии, менять нельзя --- hence in-place)
+    \begin{myinplacelisting}[minted language=python]
+from conan import ConanFile
+
+
+class HelloConan(ConanFile):
+    name = "hello"
+    version = "0.1.0"
+    settings = "os", "arch", "compiler", "build_type"
+    \end{myinplacelisting}
+
+    \column{0.48\textwidth}
+
+    \begin{mytitledinplacelisting}[minted language=text]{05-hello/}
+05-hello/
+├── CMakeLists.txt
+├── conanfile.py
+├── include/
+│   └── hello/
+│       └── hello.hpp
+├── src/
+│   └── hello.cpp
+└── test_package/
+    ├── CMakeLists.txt
+    ├── conanfile.py
+    └── src/
+        └── test.cpp
+    \end{mytitledinplacelisting}
+
+  \end{columns}
+
+  \bigbreak
+
+  {\small
+  Сгенерированные файлы \texttt{build/} и
+  \texttt{CMakeUserPresets.json} в дереве не показаны --- их
+  покрывает \texttt{src/.gitignore}.
+  }
+
+\end{frame}
+
+\begin{frame}[fragile]{Первый conanfile.py}
+
+  \myinputlisting[minted language=cmake]
+    {presentations/03-conan/src/}
+    {05-hello/CMakeLists.txt}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{settings} в рецепте --- то, от чего зависит
+      бинарник;
+
+    \item \texttt{name}/\texttt{version} --- идентификатор пакета.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Код пакета}
+
+  \begin{columns}[T]
+
+    \column{0.48\textwidth}
+
+    \myinputlisting[minted language=c++]
+      {presentations/03-conan/src/}
+      {05-hello/include/hello/hello.hpp}
+
+    \bigbreak
+
+    \myinputlisting[minted language=c++,
+      minted options={fontsize=\footnotesize, breaklines,
+      breakanywhere, linenos, escapeinside=||, numbersep=2pt}]
+      {presentations/03-conan/src/}
+      {05-hello/src/hello.cpp}
+
+    \column{0.48\textwidth}
+
+    \myinputlisting[minted language=c++]
+      {presentations/03-conan/src/}
+      {05-hello/test_package/src/test.cpp}
+
+  \end{columns}
+
+  \bigbreak
+
+  Код пакета \texttt{hello}; \texttt{test.cpp} --- из
+  \texttt{test\_package} (файлы в \texttt{06-hello-meson}
+  идентичны).
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{generate()}}
+
+  % Фрагмент ступени 2 из src/05-hello/conanfile.py (in-place:
+  % ступень не существует как отдельный файл)
+  \begin{myinplacelisting}[minted language=python]
+from conan.tools.cmake import CMake, CMakeToolchain, CMakeDeps, cmake_layout
+
+def layout(self):
+    cmake_layout(self)
+
+def generate(self):
+    tc = CMakeToolchain(self)
+    tc.generate()
+    deps = CMakeDeps(self)
+    deps.generate()
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{generate()} создаёт файлы до сборки;
+      \texttt{cmake\_layout} сам знает, куда их положить
+      (\texttt{build/Release/generators});
+
+    \item собрать можно и \enquote{вручную}: обычный \texttt{cmake}
+      с \texttt{-C} (или пресетом \texttt{conan-release}).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{generate()}}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=11}]
+!\shellcommand{cd src/05-hello}!
+!\shellcommand{conan install .}!
+!\dots!
+conanfile.py (hello/0.1.0): Calling generate()
+conanfile.py (hello/0.1.0): Generators folder: !\dots!/05-hello/build/Release/generators
+conanfile.py (hello/0.1.0): CMakeToolchain generated: conan_toolchain.cmake
+conanfile.py (hello/0.1.0): CMakeToolchain: Preset 'conan-release' added to CMakePresets.json.
+    (cmake>=3.23) cmake --preset conan-release
+    (cmake<3.23) cmake <path> -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=!\dots!
+!\dots!
+Install finished successfully
+!\shellcommand{cmake -S . -B build/Release -C build/Release/generators/conan\_toolchain.cmake}!
+loading initial cache file build/Release/generators/conan_toolchain.cmake
+-- Using Conan toolchain: !\dots!/05-hello/build/Release/generators/conan_toolchain.cmake
+-- Conan toolchain: Setting CMAKE_POSITION_INDEPENDENT_CODE=ON (options.fPIC)
+-- Conan toolchain: Defining architecture flag: -m64
+-- Conan toolchain: C++ Standard 17 with extensions ON
+-- Conan toolchain: Setting BUILD_SHARED_LIBS = OFF
+!\dots!
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: !\dots!/05-hello/build/Release
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{generate()}}
+
+  \textit{\dots continued}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=12}]
+!\shellcommand{cd src/05-hello}!
+!\shellcommand{conan install .}!
+!\dots!
+conanfile.py (hello/0.1.0): Calling generate()
+conanfile.py (hello/0.1.0): Generators folder: !\dots!/05-hello/build/Release/generators
+conanfile.py (hello/0.1.0): CMakeToolchain generated: conan_toolchain.cmake
+conanfile.py (hello/0.1.0): CMakeToolchain: Preset 'conan-release' added to CMakePresets.json.
+    (cmake>=3.23) cmake --preset conan-release
+    (cmake<3.23) cmake <path> -G "Unix Makefiles" -DCMAKE_TOOLCHAIN_FILE=!\dots!
+!\dots!
+Install finished successfully
+!\shellcommand{cmake -S . -B build/Release -C build/Release/generators/conan\_toolchain.cmake}!
+loading initial cache file build/Release/generators/conan_toolchain.cmake
+-- Using Conan toolchain: !\dots!/05-hello/build/Release/generators/conan_toolchain.cmake
+-- Conan toolchain: Setting CMAKE_POSITION_INDEPENDENT_CODE=ON (options.fPIC)
+-- Conan toolchain: Defining architecture flag: -m64
+-- Conan toolchain: C++ Standard 17 with extensions ON
+-- Conan toolchain: Setting BUILD_SHARED_LIBS = OFF
+!\dots!
+-- Configuring done (0.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: !\dots!/05-hello/build/Release
+  \end{terminalwindow}
+  }
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{build()}}
+
+  % Фрагмент ступени 3 из src/05-hello/conanfile.py (in-place:
+  % файл в src/ в итоговом состоянии)
+  \begin{myinplacelisting}[minted language=python]
+def build(self):
+    cmake = CMake(self)
+    cmake.configure()
+    cmake.build()
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=10}]
+!\shellcommand{rm -rf build}!
+!\shellcommand{conan build .}!
+!\dots!
+conanfile.py (hello/0.1.0): Calling build()
+conanfile.py (hello/0.1.0): Running CMake.configure()
+conanfile.py (hello/0.1.0): RUN: cmake -G "Unix Makefiles"\\
+-DCMAKE_TOOLCHAIN_FILE="generators/conan_toolchain.cmake"
+-DCMAKE_INSTALL_PREFIX=!\dots!\\
+-DCMAKE_POLICY_DEFAULT_CMP0091="NEW"
+-DCMAKE_BUILD_TYPE="Release" "!\dots!"
+-- Using Conan toolchain: !\dots!/05-hello/build/Release/generators/conan_toolchain.cmake
+-- Conan toolchain: Setting CMAKE_POSITION_INDEPENDENT_CODE=ON (options.fPIC)
+-- Conan toolchain: Defining architecture flag: -m64
+-- Conan toolchain: C++ Standard 17 with extensions ON
+-- Conan toolchain: Setting BUILD_SHARED_LIBS = OFF
+-- The CXX compiler identification is GNU 15.3.0
+!\dots!
+-- Configuring done (1.1s)
+-- Generating done (0.0s)
+conanfile.py (hello/0.1.0): Running CMake.build()
+[ 50%] Building CXX object CMakeFiles/hello.dir/src/hello.cpp.o
+[100%] Linking CXX static library libhello.a
+[100%] Built target hello
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{build()}}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=11}]
+!\shellcommand{rm -rf build}!
+!\shellcommand{conan build .}!
+!\dots!
+conanfile.py (hello/0.1.0): Calling build()
+conanfile.py (hello/0.1.0): Running CMake.configure()
+conanfile.py (hello/0.1.0): RUN: cmake -G "Unix Makefiles"\\
+-DCMAKE_TOOLCHAIN_FILE="generators/conan_toolchain.cmake"
+-DCMAKE_INSTALL_PREFIX=!\dots!\\
+-DCMAKE_POLICY_DEFAULT_CMP0091="NEW"
+-DCMAKE_BUILD_TYPE="Release" "!\dots!"
+-- Using Conan toolchain: !\dots!/05-hello/build/Release/generators/conan_toolchain.cmake
+-- Conan toolchain: Setting CMAKE_POSITION_INDEPENDENT_CODE=ON (options.fPIC)
+-- Conan toolchain: Defining architecture flag: -m64
+-- Conan toolchain: C++ Standard 17 with extensions ON
+-- Conan toolchain: Setting BUILD_SHARED_LIBS = OFF
+-- The CXX compiler identification is GNU 15.3.0
+!\dots!
+-- Configuring done (1.1s)
+-- Generating done (0.0s)
+conanfile.py (hello/0.1.0): Running CMake.build()
+[ 50%] Building CXX object CMakeFiles/hello.dir/src/hello.cpp.o
+[100%] Linking CXX static library libhello.a
+[100%] Built target hello
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{conan build} = \texttt{generate()} +
+      \texttt{build()} в локальной папке;
+
+    \item \texttt{CMake(self)} сам находит сгенерированный
+      toolchain (флаг \texttt{-DCMAKE\_TOOLCHAIN\_FILE} передаётся
+      автоматически).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Вариант с Meson}
+
+  \myinputlisting[minted language=python,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=17}]
+    {presentations/03-conan/src/}
+    {06-hello-meson/conanfile.py}
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Вариант с Meson}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  \myinputlisting[minted language=python,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=18}]
+    {presentations/03-conan/src/}
+    {06-hello-meson/conanfile.py}
+
+  \bigbreak
+
+  \myinputlisting[minted language=meson]
+    {presentations/03-conan/src/}
+    {06-hello-meson/meson.build}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item та же структура (\texttt{layout}/\texttt{generate}/
+      \texttt{build}), другие тулзы: \texttt{MesonToolchain} +
+      \texttt{Meson};
+
+    \item Conan не привязан к CMake.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Meson: сборка}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=15}]
+!\shellcommand{cd src/06-hello-meson}!
+!\shellcommand{conan build .}!
+!\dots!
+conanfile.py (hello/0.1.0): Meson configure cmd: meson setup --native-file "!\dots!" !\dots! --prefix=/
+The Meson build system
+Version: 1.10.2
+Source dir: !\dots!/06-hello-meson
+Build dir: !\dots!/06-hello-meson/build/Release
+Build type: native build
+Project name: hello
+Project version: undefined
+C++ compiler for the host machine: g++ (gcc 15.3.0 "g++ (GCC) 15.3.0")
+C++ linker for the host machine: g++ ld.bfd 2.46
+Host machine cpu family: x86_64
+Host machine cpu: x86_64
+Build targets in project: 1
+
+hello undefined
+
+  User defined options
+    Native files: !\dots!/06-hello-meson/build/Release/generators/conan_meson_native.ini
+    prefix      : /
+
+Found ninja-1.13.2 at /nix/store/!\dots!/bin/ninja
+!\dots!
+conanfile.py (hello/0.1.0): Meson build cmd: meson compile -C "!\dots!" -j16
+[1/2] Compiling C++ object libhello.a.p/src_hello.cpp.o
+[2/2] Linking static target libhello.a
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Meson: сборка}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=16}]
+!\shellcommand{cd src/06-hello-meson}!
+!\shellcommand{conan build .}!
+!\dots!
+conanfile.py (hello/0.1.0): Meson configure cmd: meson setup --native-file "!\dots!" !\dots! --prefix=/
+The Meson build system
+Version: 1.10.2
+Source dir: !\dots!/06-hello-meson
+Build dir: !\dots!/06-hello-meson/build/Release
+Build type: native build
+Project name: hello
+Project version: undefined
+C++ compiler for the host machine: g++ (gcc 15.3.0 "g++ (GCC) 15.3.0")
+C++ linker for the host machine: g++ ld.bfd 2.46
+Host machine cpu family: x86_64
+Host machine cpu: x86_64
+Build targets in project: 1
+
+hello undefined
+
+  User defined options
+    Native files: !\dots!/06-hello-meson/build/Release/generators/conan_meson_native.ini
+    prefix      : /
+
+Found ninja-1.13.2 at /nix/store/!\dots!/bin/ninja
+!\dots!
+conanfile.py (hello/0.1.0): Meson build cmd: meson compile -C "!\dots!" -j16
+[1/2] Compiling C++ object libhello.a.p/src_hello.cpp.o
+[2/2] Linking static target libhello.a
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{MesonToolchain} генерирует
+      \texttt{conan\_meson\_native.ini} --- native file, который
+      \texttt{meson setup} получает через
+      \texttt{--native-file};
+
+    \item результат тот же: \texttt{libhello.a} (статическая, fPIC).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{package()} и \texttt{exports\_sources}}
+
+  % Фрагмент ступени 4 из src/05-hello/conanfile.py (in-place:
+  % файл в src/ в итоговом состоянии)
+  \begin{myinplacelisting}[minted language=python]
+exports_sources = "CMakeLists.txt", "src/*", "include/*"
+
+def package(self):
+    cmake = CMake(self)
+    cmake.install()
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{exports\_sources} --- что копируется из проекта
+      в кэш рядом с рецептом (без него \texttt{build()} не нашёл бы
+      исходники в кэше);
+
+    \item \texttt{package()} --- что попадает в сам бинарник:
+      \texttt{cmake.install()} выполняет
+      \texttt{install(TARGETS\dots)} и \texttt{install(DIRECTORY\dots)}
+      из CMakeLists.txt (слайд 23);
+
+    \item результат: в кэше \texttt{include/hello/hello.hpp} и
+      \texttt{lib/libhello.a}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan create}
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, fontsize=\footnotesize, lastline=19}]
+!\shellcommand{cd src/05-hello}!
+!\shellcommand{conan create .}!
+======== Exporting recipe to the cache ========
+hello/0.1.0: Exporting package recipe: !\dots!/05-hello/conanfile.py
+hello/0.1.0: Copied 1 '.py' file: conanfile.py
+hello/0.1.0: Copied 1 '.txt' file: CMakeLists.txt
+hello/0.1.0: Copied 1 '.hpp' file: hello.hpp
+hello/0.1.0: Copied 1 '.cpp' file: hello.cpp
+hello/0.1.0: Exported: hello/0.1.0#70bc0107!\dots! (2026-11-17 20:21:36 UTC)
+!\dots!
+hello/0.1.0: Forced build from source
+Requirements
+    hello/0.1.0#70bc0107!\dots!:65f26548!\dots! - Build
+!\dots!
+hello/0.1.0: Building from source
+hello/0.1.0: settings: os=Linux arch=x86_64 compiler=gcc\\
+compiler.cppstd=gnu17 compiler.libcxx=libstdc++11 compiler.version=15 build_type=Release
+hello/0.1.0: options: fPIC=True shared=False
+!\dots!
+[ 50%] Building CXX object CMakeFiles/hello.dir/src/hello.cpp.o
+[100%] Linking CXX static library libhello.a
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan create}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, fontsize=\footnotesize, firstline=20}]
+!\shellcommand{cd src/05-hello}!
+!\shellcommand{conan create .}!
+======== Exporting recipe to the cache ========
+hello/0.1.0: Exporting package recipe: !\dots!/05-hello/conanfile.py
+hello/0.1.0: Copied 1 '.py' file: conanfile.py
+hello/0.1.0: Copied 1 '.txt' file: CMakeLists.txt
+hello/0.1.0: Copied 1 '.hpp' file: hello.hpp
+hello/0.1.0: Copied 1 '.cpp' file: hello.cpp
+hello/0.1.0: Exported: hello/0.1.0#70bc0107!\dots! (2026-11-17 20:21:36 UTC)
+!\dots!
+hello/0.1.0: Forced build from source
+Requirements
+    hello/0.1.0#70bc0107!\dots!:65f26548!\dots! - Build
+!\dots!
+hello/0.1.0: Building from source
+hello/0.1.0: settings: os=Linux arch=x86_64 compiler=gcc\\
+compiler.cppstd=gnu17 compiler.libcxx=libstdc++11 compiler.version=15 build_type=Release
+hello/0.1.0: options: fPIC=True shared=False
+!\dots!
+[ 50%] Building CXX object CMakeFiles/hello.dir/src/hello.cpp.o
+[100%] Linking CXX static library libhello.a
+!\dots!
+hello/0.1.0: package(): Packaged 1 '.hpp' file: hello.hpp
+hello/0.1.0: package(): Packaged 1 '.a' file: libhello.a
+hello/0.1.0: Created package revision e9c2246a!\dots!
+hello/0.1.0: Package '65f26548!\dots!' created
+!\dots!
+======== Launching test_package ========
+!\dots!
+-- Conan: Component target declared 'hello::libhello'
+-- Conan: Target declared 'hello::hello'
+!\dots!
+hello/0.1.0 (test package): RUN: ./test_package
+Hello, Conan 2!
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{conan create} = экспорт рецепта (ревизия) +
+      \texttt{build()} + \texttt{package()} + запись бинарника в
+      кэш;
+
+    \item \texttt{exports\_sources} (слайд 28) --- поэтому в кэш
+      скопировались \texttt{CMakeLists.txt} и исходники;
+
+    \item \texttt{test\_package} (если есть) запускается в конце
+      (разбор --- слайд 39).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan list}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=13}]
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:36 UTC)
+          packages
+            65f26548!\dots!
+              info
+                settings
+                  arch: x86_64
+                  build_type: Release
+                  compiler: gcc
+                  compiler.cppstd: gnu17
+                  compiler.libcxx: libstdc++11
+                  compiler.version: 15
+                  os: Linux
+                options
+                  fPIC: True
+                  shared: False
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan list}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=14}]
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:36 UTC)
+          packages
+            65f26548!\dots!
+              info
+                settings
+                  arch: x86_64
+                  build_type: Release
+                  compiler: gcc
+                  compiler.cppstd: gnu17
+                  compiler.libcxx: libstdc++11
+                  compiler.version: 15
+                  os: Linux
+                options
+                  fPIC: True
+                  shared: False
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{list} показывает то, что реально лежит в кэше:
+      версия -> ревизия -> \texttt{package\_id} ->
+      settings/options, из которых id рассчитан;
+
+    \item пока один бинарник --- под текущий (дефолтный) профиль.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Опции shared/fPIC}
+
+  % Фрагмент ступени 5 из src/05-hello/conanfile.py (in-place:
+  % файл в src/ в итоговом состоянии)
+  \begin{myinplacelisting}[minted language=python]
+options = {"shared": [True, False], "fPIC": [True, False]}
+default_options = {"shared": False, "fPIC": True}
+package_type = "library"
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{options} --- настраиваемая часть рецепта, входят
+      в \texttt{package\_id};
+
+    \item \texttt{package\_type = "library"} --- абстрактный тип:
+      конкретный (static/shared-library) Conan выводит из опции
+      \texttt{shared};
+
+    \item \texttt{*:} --- применить опцию ко всем пакетам графа;
+
+    \item \texttt{CMakeToolchain} сам передаёт \texttt{BUILD\_SHARED\_LIBS}
+      и \texttt{CMAKE\_POSITION\_INDEPENDENT\_CODE} из опций
+      (CMakeLists.txt менять не нужно);
+
+    \item у одной ревизии два бинарника: static
+      (\texttt{65f2\dots}) и shared (\texttt{09f937\dots}).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Опции shared/fPIC}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=17}]
+!\shellcommand{conan create . -o "*:shared=True"}!
+!\dots!
+hello/0.1.0: Forced build from source
+Requirements
+    hello/0.1.0#70bc0107!\dots!:09f93740!\dots! - Build
+!\dots!
+hello/0.1.0: options: fPIC=True shared=True
+!\dots!
+-- Conan toolchain: Setting BUILD_SHARED_LIBS = ON
+!\dots!
+[100%] Linking CXX shared library libhello.so
+!\dots!
+hello/0.1.0: package(): Packaged 1 '.so' file: libhello.so
+hello/0.1.0: Created package revision a19e6edf!\dots!
+hello/0.1.0: Package '09f93740!\dots!' created
+!\dots!
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:40 UTC)
+          packages
+            09f93740!\dots!
+              info
+                !\dots!
+                options
+                  fPIC: True
+                  shared: True
+              65f26548!\dots!
+                info
+                  !\dots!
+                  options
+                    fPIC: True
+                    shared: False
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{Опции shared/fPIC}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=18}]
+!\shellcommand{conan create . -o "*:shared=True"}!
+!\dots!
+hello/0.1.0: Forced build from source
+Requirements
+    hello/0.1.0#70bc0107!\dots!:09f93740!\dots! - Build
+!\dots!
+hello/0.1.0: options: fPIC=True shared=True
+!\dots!
+-- Conan toolchain: Setting BUILD_SHARED_LIBS = ON
+!\dots!
+[100%] Linking CXX shared library libhello.so
+!\dots!
+hello/0.1.0: package(): Packaged 1 '.so' file: libhello.so
+hello/0.1.0: Created package revision a19e6edf!\dots!
+hello/0.1.0: Package '09f93740!\dots!' created
+!\dots!
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:40 UTC)
+          packages
+            09f93740!\dots!
+              info
+                !\dots!
+                options
+                  fPIC: True
+                  shared: True
+              65f26548!\dots!
+                info
+                  !\dots!
+                  options
+                    fPIC: True
+                    shared: False
+  \end{terminalwindow}
+  }
+
+\end{frame}
+
+\begin{frame}{Исходники + профиль = пакет}
+
+  \begin{center}
+
+    \begin{tikzpicture}[
+      box/.style={draw, thick, align=center, inner sep=4pt,
+        font=\footnotesize},
+      arr/.style={->, thick}
+    ]
+
+      \node[box] (src) at (0.8,0)
+        {исходники hello \\
+         (конкретная ревизия рецепта)};
+
+      \node[box, align=left] (prof) at (5.6,0)
+        {профиль: \\
+         gcc/Release, shared=False \\
+         clang/Release, shared=False \\
+         gcc/Release, shared=True};
+
+      \node[box] (id1) at (9.9,1.7)
+        {\texttt{package\_id}: \texttt{65f2\dots} \\
+         (бинарник в кэше)};
+
+      \node[box] (id2) at (9.9,0)
+        {\texttt{package\_id}: \texttt{caba\dots} \\
+         (бинарника нет)};
+
+      \node[box] (id3) at (9.9,-1.7)
+        {\texttt{package\_id}: \texttt{09f9\dots} \\
+         (бинарник в кэше)};
+
+      \draw[arr] (src) -- node[above, align=center,
+        font=\scriptsize] {conan create \\ install} (prof);
+
+      \draw[arr] (prof.east) -- (id1.west);
+
+      \draw[arr] (prof.east) -- (id2.west);
+
+      \draw[arr] (prof.east) -- (id3.west);
+
+    \end{tikzpicture}
+
+    исходники одни и те же, пакеты разные: по бинарнику на каждую
+    комбинацию профиля и опций
+
+  \end{center}
+
+  \bigbreak
+
+  Тезис: исходники одни, пакеты разные.
+
+\end{frame}
+
+\begin{frame}{Рецепт, ревизии, package\_id}
+
+  \begin{center}
+
+    \begin{tikzpicture}[
+      box/.style={draw, thick, align=center, inner sep=4pt,
+        font=\footnotesize},
+      arr/.style={->, thick}
+    ]
+
+      \node[box] (rec) at (1.4,0.3)
+        {hello/0.1.0 \\ (рецепт)};
+
+      \node[box] (r1) at (5.4,1.5)
+        {ревизия R1 (\texttt{70bc\dots})};
+
+      \node[box] (r1a) at (5.4,0.15)
+        {\texttt{package\_id}: \texttt{65f2\dots} \\
+         (gcc/Release, static)};
+
+      \node[box] (r1b) at (5.4,-1.4)
+        {\texttt{package\_id}: \texttt{09f9\dots} \\
+         (gcc/Release, shared)};
+
+      \node[box] (r2) at (9.8,1.5)
+        {ревизия R2 (\texttt{2bd8\dots}, latest)};
+
+      \node[box] (r2a) at (9.8,-0.4)
+        {\texttt{package\_id}: \texttt{65f2\dots} \\
+         (gcc/Release, static) \\
+         тот же id};
+
+      \draw[arr] (rec) -- (r1.west);
+
+      \draw[arr] (rec) -- (r2.west);
+
+      \draw[arr] (r2.south) -- (r2a.north);
+
+    \end{tikzpicture}
+
+    \texttt{package\_id} считается от settings, options и
+    зависимостей; ревизия --- хеш самого рецепта
+
+  \end{center}
+
+  \bigbreak
+
+  Новый рецепт = новая ревизия; старые ревизии не удаляются;
+  бинарники привязаны к паре \enquote{ревизия + package\_id}.
+
+\end{frame}
+
+\begin{frame}[fragile]{conan list: ревизии\footnotemark{}%
+  \footnotetext{\url{\conandoc/reference/commands/list.html}}}
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,lastline=11}]
+!\shellcommand{conan list "hello/0.1.0:*"}!
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                settings
+                  arch: x86_64
+                  build_type: Release
+                  compiler: gcc
+                  !\dots!
+                options
+                  fPIC: True
+                  shared: False
+!\shellcommand{conan list "hello/0.1.0\#*:*"}!
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:40 UTC)
+          packages
+            09f93740!\dots!
+              info
+                !\dots!
+            65f26548!\dots!
+              info
+                !\dots!
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                !\dots!
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan list: ревизии}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,firstline=12,lastline=25}]
+!\shellcommand{conan list "hello/0.1.0:*"}!
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                settings
+                  arch: x86_64
+                  build_type: Release
+                  compiler: gcc
+                  !\dots!
+                options
+                  fPIC: True
+                  shared: False
+!\shellcommand{conan list "hello/0.1.0\#*:*"}!
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:40 UTC)
+          packages
+            09f93740!\dots!
+              info
+                !\dots!
+            65f26548!\dots!
+              info
+                !\dots!
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                !\dots!
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{conan list: ревизии}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,firstline=26}]
+!\shellcommand{conan list "hello/0.1.0:*"}!
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                settings
+                  arch: x86_64
+                  build_type: Release
+                  compiler: gcc
+                  !\dots!
+                options
+                  fPIC: True
+                  shared: False
+!\shellcommand{conan list "hello/0.1.0\#*:*"}!
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        70bc0107!\dots! (2026-11-17 20:21:40 UTC)
+          packages
+            09f93740!\dots!
+              info
+                !\dots!
+            65f26548!\dots!
+              info
+                !\dots!
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                !\dots!
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item по умолчанию (\texttt{hello/0.1.0:*}) --- только
+      latest-ревизия (2bd8\dots) и её бинарники;
+
+    \item \texttt{\#*} --- все ревизии: R1 (70bc\dots) с двумя
+      бинарниками и R2 (2bd8\dots) со своим;
+
+    \item у R2 тот же \texttt{package\_id} 65f2\dots: рецепт
+      изменился, а settings/options/зависимости --- нет;
+
+    \item для скриптов: \texttt{--format=compact}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Как считается \texttt{package\_id}}
+
+  \begin{itemize}
+
+    \item settings: os, arch, compiler (+ version, libcxx, \dots),
+      build\_type;
+
+    \item options: shared, fPIC и прочие из рецепта;
+
+    \item requires: имя, версия и ревизия каждой зависимости;
+
+    \item любое отличие => другой \texttt{package\_id} => отдельный
+      бинарник в кэше;
+
+    \item откуда id берётся: \texttt{conan graph info}
+      (рассчитанный) и \texttt{conan list} (то, что есть в кэше) ---
+      слайды 36--37.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{id в графе}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=16}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan graph info . -pr:h ./profiles/clang}!
+!\dots!
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+!\dots!
+======== Computing dependency graph ========
+Graph root
+    conanfile.txt: !\dots!/07-consumer/conanfile.txt
+Requirements
+    hello/0.1.0#2bd8e57d!\dots! - Cache
+
+======== Computing necessary packages ========
+Connecting to remote 'conancenter' anonymously
+Requirements
+    hello/0.1.0#2bd8e57d!\dots!:caba6630!\dots! - Missing
+
+-------- Basic graph information --------
+WARN: There are some error(s) in the graph:
+    - Missing packages: hello
+!\dots!
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{id в графе}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=17}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan graph info . -pr:h ./profiles/clang}!
+!\dots!
+Profile host:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+!\dots!
+======== Computing dependency graph ========
+Graph root
+    conanfile.txt: !\dots!/07-consumer/conanfile.txt
+Requirements
+    hello/0.1.0#2bd8e57d!\dots! - Cache
+
+======== Computing necessary packages ========
+Connecting to remote 'conancenter' anonymously
+Requirements
+    hello/0.1.0#2bd8e57d!\dots!:caba6630!\dots! - Missing
+
+-------- Basic graph information --------
+WARN: There are some error(s) in the graph:
+    - Missing packages: hello
+!\dots!
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item граф показывает, какой бинарник Conan хочет получить по
+      заданному профилю: для clang рассчитан id
+      \texttt{caba6630\dots};
+
+    \item рецепт найден в кэше
+      (\texttt{hello/0.1.0\#2bd8\dots} - Cache), а бинарника под
+      этот id нет --- Missing (в кэше собраны только gcc-бинарники);
+
+    \item remote \texttt{conancenter} опрашивался --- hello там тоже
+      отсутствует (это наша собственная версия).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{id в кэше: профиль против кэша}
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,lastline=20}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                !\dots!
+!\shellcommand{conan install . -pr:h ./profiles/clang}!
+!\dots!
+Requirements
+    hello/0.1.0#2bd8e57d!\dots!:caba6630!\dots! - Missing
+ERROR: Missing binary: hello/0.1.0:caba66303612bab5bc5c218fdf8107729aa53fb1
+
+hello/0.1.0: WARN: Can't find a 'hello/0.1.0' package binary 'caba6630!\dots!' for the configuration:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+[options]
+fPIC=True
+shared=False
+
+ERROR: Missing prebuilt package for 'hello/0.1.0'. You can try:
+    - List all available packages using 'conan list "hello/0.1.0:*" -r=remote'
+    - Explain missing binaries: replace 'conan install !\dots!' with 'conan graph explain !\dots!'
+    - Try to build locally from sources using the '--build=hello/0.1.0' argument
+
+More Info at 'https://docs.conan.io/2/knowledge/faq.html#error-missing-prebuilt-package'
+!\shellcommand{conan graph explain . -pr:h ./profiles/clang}!
+!\dots!
+Missing binary: hello/0.1.0
+With conaninfo.txt (package_id):
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+[options]
+fPIC=True
+shared=False
+!\dots!
+ERROR: Error in remote 'conancenter': Recipe not found: _/hello/0.1.0/_. [Remote: conancenter]
+
+======== Closest binaries ========
+hello/0.1.0
+  hello/0.1.0#2bd8e57d!\dots!%1794946904.414173 (2026-11-17 20:21:44 UTC)
+    hello/0.1.0#2bd8e57d!\dots!:65f26548!\dots!
+      remote: Local Cache
+      settings: Linux, x86_64, Release, gcc, gnu17, libstdc++11, 15
+      options: fPIC=True, shared=False
+      diff
+        settings
+          expected: compiler=clang, compiler.libcxx=libc++, compiler.version=21, compiler.cppstd=None
+          existing: compiler=gcc, compiler.libcxx=libstdc++11, compiler.version=15, compiler.cppstd=gnu17
+        explanation: This binary was built with different settings.
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{id в кэше: профиль против кэша}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,firstline=21,lastline=44}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                !\dots!
+!\shellcommand{conan install . -pr:h ./profiles/clang}!
+!\dots!
+Requirements
+    hello/0.1.0#2bd8e57d!\dots!:caba6630!\dots! - Missing
+ERROR: Missing binary: hello/0.1.0:caba66303612bab5bc5c218fdf8107729aa53fb1
+
+hello/0.1.0: WARN: Can't find a 'hello/0.1.0' package binary 'caba6630!\dots!' for the configuration:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+[options]
+fPIC=True
+shared=False
+
+ERROR: Missing prebuilt package for 'hello/0.1.0'. You can try:
+    - List all available packages using 'conan list "hello/0.1.0:*" -r=remote'
+    - Explain missing binaries: replace 'conan install !\dots!' with 'conan graph explain !\dots!'
+    - Try to build locally from sources using the '--build=hello/0.1.0' argument
+
+More Info at 'https://docs.conan.io/2/knowledge/faq.html#error-missing-prebuilt-package'
+!\shellcommand{conan graph explain . -pr:h ./profiles/clang}!
+!\dots!
+Missing binary: hello/0.1.0
+With conaninfo.txt (package_id):
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+[options]
+fPIC=True
+shared=False
+!\dots!
+ERROR: Error in remote 'conancenter': Recipe not found: _/hello/0.1.0/_. [Remote: conancenter]
+
+======== Closest binaries ========
+hello/0.1.0
+  hello/0.1.0#2bd8e57d!\dots!%1794946904.414173 (2026-11-17 20:21:44 UTC)
+    hello/0.1.0#2bd8e57d!\dots!:65f26548!\dots!
+      remote: Local Cache
+      settings: Linux, x86_64, Release, gcc, gnu17, libstdc++11, 15
+      options: fPIC=True, shared=False
+      diff
+        settings
+          expected: compiler=clang, compiler.libcxx=libc++, compiler.version=21, compiler.cppstd=None
+          existing: compiler=gcc, compiler.libcxx=libstdc++11, compiler.version=15, compiler.cppstd=gnu17
+        explanation: This binary was built with different settings.
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{id в кэше: профиль против кэша}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\footnotesize
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,firstline=45}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan list "hello/*:*"}!
+Found 1 pkg/version recipes matching hello/* in local cache
+Local Cache
+  hello
+    hello/0.1.0
+      revisions
+        2bd8e57d!\dots! (2026-11-17 20:21:44 UTC)
+          packages
+            65f26548!\dots!
+              info
+                !\dots!
+!\shellcommand{conan install . -pr:h ./profiles/clang}!
+!\dots!
+Requirements
+    hello/0.1.0#2bd8e57d!\dots!:caba6630!\dots! - Missing
+ERROR: Missing binary: hello/0.1.0:caba66303612bab5bc5c218fdf8107729aa53fb1
+
+hello/0.1.0: WARN: Can't find a 'hello/0.1.0' package binary 'caba6630!\dots!' for the configuration:
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+[options]
+fPIC=True
+shared=False
+
+ERROR: Missing prebuilt package for 'hello/0.1.0'. You can try:
+    - List all available packages using 'conan list "hello/0.1.0:*" -r=remote'
+    - Explain missing binaries: replace 'conan install !\dots!' with 'conan graph explain !\dots!'
+    - Try to build locally from sources using the '--build=hello/0.1.0' argument
+
+More Info at 'https://docs.conan.io/2/knowledge/faq.html#error-missing-prebuilt-package'
+!\shellcommand{conan graph explain . -pr:h ./profiles/clang}!
+!\dots!
+Missing binary: hello/0.1.0
+With conaninfo.txt (package_id):
+[settings]
+arch=x86_64
+build_type=Release
+compiler=clang
+compiler.libcxx=libc++
+compiler.version=21
+os=Linux
+[options]
+fPIC=True
+shared=False
+!\dots!
+ERROR: Error in remote 'conancenter': Recipe not found: _/hello/0.1.0/_. [Remote: conancenter]
+
+======== Closest binaries ========
+hello/0.1.0
+  hello/0.1.0#2bd8e57d!\dots!%1794946904.414173 (2026-11-17 20:21:44 UTC)
+    hello/0.1.0#2bd8e57d!\dots!:65f26548!\dots!
+      remote: Local Cache
+      settings: Linux, x86_64, Release, gcc, gnu17, libstdc++11, 15
+      options: fPIC=True, shared=False
+      diff
+        settings
+          expected: compiler=clang, compiler.libcxx=libc++, compiler.version=21, compiler.cppstd=None
+          existing: compiler=gcc, compiler.libcxx=libstdc++11, compiler.version=15, compiler.cppstd=gnu17
+        explanation: This binary was built with different settings.
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item рассчитанный id (\texttt{caba6630\dots}) не совпал ни с
+      одним id в кэше => Conan требует \texttt{--build=missing} или
+      загрузку с сервера;
+
+    \item \texttt{conan graph explain} --- главный инструмент
+      диагностики \enquote{почему нет бинарника}: ближайший
+      бинарник и точный diff settings (gcc/libstdc++11/15 против
+      clang/libc++/21).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{package\_info}\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/creating_packages/define_package_information.html}}}
+
+  % Фрагмент ступени 6 из src/05-hello/conanfile.py (in-place:
+  % файл в src/ в итоговом состоянии)
+  \begin{myinplacelisting}[minted language=python]
+def package_info(self):
+    self.cpp_info.libs = ["hello"]
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{package\_info()} --- информация о бинарнике для
+      потребителя: libs, includedirs, libdirs, requires;
+
+    \item \texttt{libdirs=["lib"]} и \texttt{includedirs=["include"]}
+      --- значения по умолчанию, писать не обязательно;
+
+    \item для CMakeDeps из этого автоматически создаётся target
+      \texttt{hello::hello} (\texttt{find\_package(hello)}).
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{test\_package}\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/creating_packages/test_conan_packages.html}}}
+
+  \myinputlisting[minted language=python,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,lastline=14}]
+    {presentations/03-conan/src/}
+    {05-hello/test_package/conanfile.py}
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{test\_package}\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/creating_packages/test_conan_packages.html}}}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  \myinputlisting[minted language=python,
+    minted options={fontsize=\small,breaklines,breakanywhere,
+    linenos,numbersep=2pt,firstline=15}]
+    {presentations/03-conan/src/}
+    {05-hello/test_package/conanfile.py}
+
+  \bigbreak
+
+  % Промежуточный вариант (в src/ итоговый hello::libhello,
+  % слайд 40)
+  \begin{myinplacelisting}[minted language=cmake]
+cmake_minimum_required(VERSION 3.15)
+project(test_package CXX)
+
+find_package(hello REQUIRED)
+
+add_executable(test_package src/test.cpp)
+target_link_libraries(test_package PRIVATE hello::hello)
+  \end{myinplacelisting}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{test\_package}\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/creating_packages/test_conan_packages.html}}}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, lastline=10}]
+!\shellcommand{conan create .}!
+!\dots!
+hello/0.1.0: Already installed!\excl! (1 of 1)
+
+======== Testing the package ========
+!\dots!
+hello/0.1.0 (test package): CMakeDeps necessary find_package() and targets for your CMakeLists.txt
+    find_package(hello)
+    target_link_libraries(!\dots! hello::hello)
+!\dots!
+======== Testing the package: Building ========
+!\dots!
+-- Conan: Component target declared 'hello::libhello'
+-- Conan: Target declared 'hello::hello'
+!\dots!
+[ 50%] Building CXX object CMakeFiles/test_package.dir/src/test.cpp.o
+[100%] Linking CXX executable test_package
+!\dots!
+======== Testing the package: Executing test ========
+hello/0.1.0 (test package): Running test()
+hello/0.1.0 (test package): RUN: ./test_package
+Hello, Conan 2!\excl!
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{\texttt{test\_package}\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/creating_packages/test_conan_packages.html}}}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!, firstline=11}]
+!\shellcommand{conan create .}!
+!\dots!
+hello/0.1.0: Already installed!\excl! (1 of 1)
+
+======== Testing the package ========
+!\dots!
+hello/0.1.0 (test package): CMakeDeps necessary find_package() and targets for your CMakeLists.txt
+    find_package(hello)
+    target_link_libraries(!\dots! hello::hello)
+!\dots!
+======== Testing the package: Building ========
+!\dots!
+-- Conan: Component target declared 'hello::libhello'
+-- Conan: Target declared 'hello::hello'
+!\dots!
+[ 50%] Building CXX object CMakeFiles/test_package.dir/src/test.cpp.o
+[100%] Linking CXX executable test_package
+!\dots!
+======== Testing the package: Executing test ========
+hello/0.1.0 (test package): Running test()
+hello/0.1.0 (test package): RUN: ./test_package
+Hello, Conan 2!\excl!
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{test\_package} --- маленький Conan-проект, который
+      проверяет только что созданный пакет; \texttt{conan create}
+      запускает его автоматически;
+
+    \item \texttt{tested\_reference\_str} --- ссылка на тестируемый
+      пакет без хардкода;
+
+    \item \texttt{test\_package} не попадает в сам пакет.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Компоненты\footnotemark{}%
+  \footnotetext{\url{\conandoc/reference/tools/cmake/cmakedeps.html}}}
+
+  % Фрагмент ступени 7: строки 32-33 из src/05-hello/conanfile.py
+  % (in-place: файл в src/ показывается фрагментами по ступеням)
+  \begin{myinplacelisting}[minted language=python]
+def package_info(self):
+    self.cpp_info.components["libhello"].libs = ["hello"]
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  % Строка 7 из src/05-hello/test_package/CMakeLists.txt (итоговое
+  % состояние; слайд 39 показывал промежуточный hello::hello)
+  \begin{myinplacelisting}[minted language=cmake]
+target_link_libraries(test_package PRIVATE hello::libhello)
+  \end{myinplacelisting}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item компоненты --- для пакетов с несколькими библиотеками: у
+      каждой свой libs/реализация и свой CMake-таргет
+      (\texttt{hello::libhello});
+
+    \item глобальный таргет \texttt{hello::hello} остаётся и тянет
+      все компоненты;
+
+    \item в \texttt{test\_package} можно линковаться и с
+      \texttt{hello::libhello}, и с \texttt{hello::hello}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Компоненты\footnotemark{}%
+  \footnotetext{\url{\conandoc/reference/tools/cmake/cmakedeps.html}}}
+
+  \begin{terminalwindow}
+!\shellcommand{conan create .}!
+!\dots!
+hello/0.1.0: Already installed!\excl! (1 of 1)
+
+======== Testing the package ========
+!\dots!
+-- Conan: Component target declared 'hello::libhello'
+-- Conan: Target declared 'hello::hello'
+!\dots!
+[100%] Linking CXX executable test_package
+!\dots!
+hello/0.1.0 (test package): RUN: ./test_package
+Hello, Conan 2!\excl!
+  \end{terminalwindow}
+
+\end{frame}
+
+\begin{frame}{package\_type\footnotemark{}%
+  \footnotetext{\url{\conandoc/reference/conanfile/attributes.html}}}
+
+  \begin{table}[h]
+
+    \begin{center}
+
+      \renewcommand{\arraystretch}{1.5}
+
+      \begin{tabular}{|p{3.0cm}|p{8.0cm}|}
+
+        \hline
+
+        \textbf{Значение} & \textbf{Когда} \\
+
+        \hline
+
+        \texttt{library} & библиотека: конкретный тип
+          (static/shared) выводится из опции shared \\
+
+        \texttt{shared-library} & динамическая библиотека \\
+
+        \texttt{static-library} & статическая библиотека \\
+
+        \texttt{header-library} & только заголовки \\
+
+        \texttt{application} & исполняемый файл \\
+
+        \texttt{build-scripts} & инструменты/скрипты сборки \\
+
+        \hline
+
+      \end{tabular}
+
+    \end{center}
+
+  \end{table}
+
+\end{frame}
+
+\begin{frame}[fragile]{deployer\footnotemark{}%
+  \footnotetext{\url{\conandoc/reference/commands/install.html}}}
+
+  \begin{terminalwindow}
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan install . --deployer=full\_deploy}!
+!\dots!
+======== Finalizing install (deploy, generators) ========
+conanfile.txt: Conan built-in full deployer to !\dots!/07-consumer
+!\dots!
+Install finished successfully
+!\shellcommand{ls full\_deploy}!
+host
+!\shellcommand{find full\_deploy -type f}!
+full_deploy/host/hello/0.1.0/Release/x86_64/conaninfo.txt
+full_deploy/host/hello/0.1.0/Release/x86_64/conanmanifest.txt
+full_deploy/host/hello/0.1.0/Release/x86_64/include/hello/hello.hpp
+full_deploy/host/hello/0.1.0/Release/x86_64/lib/libhello.a
+  \end{terminalwindow}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{package\_type} задаётся в рецепте; у hello ---
+      \enquote{library}: конкретный тип
+      (static-library/shared-library) выводит сам Conan из опции
+      shared;
+
+    \item по \texttt{package\_type} Conan корректно обрабатывает
+      окружение (например, пути к динамическим библиотекам);
+
+    \item встроенные deployer'ы: \texttt{full\_deploy},
+      \texttt{direct\_deploy}, \texttt{runtime\_deploy} ---
+      копирование файлов пакета для локального использования без кэша.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{lockfile\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/versioning/lockfiles.html}}}
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,lastline=13}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan lock create .}!
+!\dots!
+======== Computing dependency graph ========
+Requirements
+    hello/0.1.0#70bc0107!\dots! - Cache
+!\dots!
+Generated lockfile: !\dots!/07-consumer/conan.lock
+!\shellcommand{head -20 conan.lock}!
+{
+    "version": "0.5",
+    "requires": [
+        "hello/0.1.0#70bc01071a177b42a431ad83e28245b9%1794946914.270906"
+  \end{terminalwindow}
+  }
+
+  \textit{To be continued \dots}
+
+\end{frame}
+
+\begin{frame}[fragile]{lockfile\footnotemark{}%
+  \footnotetext{\url{\conandoc/tutorial/versioning/lockfiles.html}}}
+
+  \textit{\dots continued}
+
+  \bigbreak
+
+  {\small
+  \begin{terminalwindow}[!!][minted options={escapeinside=!!,firstline=14}]
+!\shellcommand{cd src/07-consumer}!
+!\shellcommand{conan lock create .}!
+!\dots!
+======== Computing dependency graph ========
+Requirements
+    hello/0.1.0#70bc0107!\dots! - Cache
+!\dots!
+Generated lockfile: !\dots!/07-consumer/conan.lock
+!\shellcommand{head -20 conan.lock}!
+{
+    "version": "0.5",
+    "requires": [
+        "hello/0.1.0#70bc01071a177b42a431ad83e28245b9%1794946914.270906"
+    ],
+    "build_requires": [],
+    "python_requires": [],
+    "config_requires": []
+}
+!\shellcommand{conan install . --lockfile=conan.lock}!
+Using lockfile: '!\dots!/07-consumer/conan.lock'
+!\dots!
+hello/0.1.0: Already installed!\excl! (1 of 1)
+!\dots!
+Install finished successfully
+  \end{terminalwindow}
+  }
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{lockfile} --- JSON: фиксирует граф (версии +
+      ревизии) для повторяемых сборок в CI;
+
+    \item ревизия зафиксирована с таймстампом
+      (\dots\%1794946914.270906);
+
+    \item \texttt{--lockfile-clean} --- разрешить то, чего нет в
+      \texttt{lockfile}.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}[fragile]{Репозитории\footnotemark{}\footnotemark{}%
+  \footnotetext{\url{\conandoc/reference/commands/remote.html}}%
+  \footnotetext{\url{\conandoc/reference/conan_server.html}}}
+
+  \begin{terminalwindow}
+!\shellcommand{conan remote list}!
+conancenter: https://center2.conan.io [Verify SSL: True, Enabled: True]
+!\shellcommand{conan remote add myrepo http://localhost:9300/artifactory/api/conan/my-repo}!
+!\shellcommand{conan remote list}!
+conancenter: https://center2.conan.io [Verify SSL: True, Enabled: True]
+myrepo: http://localhost:9300/artifactory/api/conan/my-repo [Verify SSL: True, Enabled: True]
+  \end{terminalwindow}
+
+  \bigbreak
+
+  \begin{itemize}
+
+    \item \texttt{conan upload "hello/*" -r myrepo --confirm} ---
+      выложить свои пакеты (в демо сервера нет: \texttt{remote add}
+      работает и без доступного сервера, \texttt{upload} --- только
+      показываем);
+
+    \item \texttt{conan install . -r myrepo} --- искать в своём
+      репозитории;
+
+    \item децентрализация: Conancenter --- не единственный источник.
+
+  \end{itemize}
+
+\end{frame}
+
+\begin{frame}{Итоги}
+
+  \begin{itemize}
+
+    \item потребление: \texttt{conanfile.txt/py} + профили => граф
+      => готовые бинарники из Conancenter или своего сервера;
+
+    \item создание: layout/generate/build/package +
+      \texttt{package\_info} + \texttt{test\_package}; конвейер не
+      привязан к CMake (есть Meson);
+
+    \item бинарная модель: рецепт (ревизии) x профиль
+      (\texttt{package\_id}) = бинарник в кэше; \texttt{explain} ---
+      диагностика недостающих бинарников;
+
+    \item репродуцируемость: \texttt{lockfile} (версии + ревизии),
+      свои репозитории и deployer'ы;
+
+    \item факты (сноски): Conan\footnotemark{}
+      \footnotetext{\url{\conandoc/knowledge/whatsnew.html}} 2.0
+      (февраль 2023) --- мульти-ревизии, conf, lockfiles, deployers.
+
+  \end{itemize}
+
+\end{frame}
+
+\end{document}

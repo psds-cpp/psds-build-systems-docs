@@ -1,0 +1,8 @@
+[requires]
+zstd/1.5.7
+
+[tool_requires]
+cmake/4.5.0
+
+[test_requires]
+gtest/1.18.0

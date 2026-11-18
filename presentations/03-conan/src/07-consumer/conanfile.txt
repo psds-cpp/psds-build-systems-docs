@@ -1,0 +1,9 @@
+[requires]
+hello/0.1.0
+
+[generators]
+CMakeDeps
+CMakeToolchain
+
+[layout]
+cmake_layout
