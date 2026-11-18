@@ -82,5 +82,8 @@ endef
 	$(wildcard presentations/02-cmake/src/toolchain/*) \
 	$(wildcard presentations/02-cmake/src/toolchain/late-demo/*) \
 	$(wildcard presentations/02-cmake/src/toolchain/order-demo/*) \
+	$(wildcard presentations/02-cmake/src/func-macro-demo/*) \
+	$(wildcard presentations/02-cmake/src/func-macro-demo/macro/*) \
+	$(wildcard presentations/02-cmake/src/func-macro-demo/function/*) \
 	$(wildcard presentations/02-cmake/src/vars-demo/*)
 	$(call generate_pdf,$<,$@)
